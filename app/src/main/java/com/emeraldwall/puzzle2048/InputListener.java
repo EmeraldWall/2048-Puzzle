@@ -1,4 +1,4 @@
-package com.gameditors.a2048;
+package com.emeraldwall.puzzle2048;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;

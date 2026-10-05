@@ -2,9 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item android:id="@+id/settings_color_picker"
-        android:title="@string/color_picker"/>
+        android:title="@string/background_color"/>
 
-    <item android:id="@+id/settings_sign_out"
-        android:title="@string/sign_out"/>
+    <item android:id="@+id/settings_remove_ads"
+        android:title="@string/remove_ads"/>
+
+    <item android:id="@+id/settings_restore_purchases"
+        android:title="@string/restore_purchases"/>
 
 </menu>

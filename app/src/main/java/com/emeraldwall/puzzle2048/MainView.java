@@ -1,4 +1,4 @@
-package com.gameditors.a2048;
+package com.emeraldwall.puzzle2048;
 
 import android.content.Context;
 import android.content.res.Resources;

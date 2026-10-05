@@ -326,9 +326,9 @@ public class MainView extends View
                     sXUndo + iconSize,
                     sYIcons + iconSize);
         else
-        drawDrawable(canvas, backgroundRectangle, sXUndo, sYIcons,
-                sXUndo + iconSize,
-                sYIcons + iconSize);
+            drawDrawable(canvas, backgroundRectangle, sXUndo, sYIcons,
+                    sXUndo + iconSize,
+                    sYIcons + iconSize);
 
         drawDrawable(canvas, getDrawable(R.drawable.ic_action_undo),
                 sXUndo + iconPaddingSize,

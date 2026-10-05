@@ -123,13 +123,13 @@ public final class BillingManager implements PurchasesUpdatedListener
         mClient.queryProductDetailsAsync(
                 QueryProductDetailsParams.newBuilder()
                         .setProductList(Collections.singletonList(product)).build(),
-                (result, details) ->
+                (result, products) ->
                 {
                     if (result.getResponseCode() != BillingClient.BillingResponseCode.OK
-                            || details.getProductDetailsList().isEmpty())
+                            || products.isEmpty())
                         return;
 
-                    mProduct = details.getProductDetailsList().get(0);
+                    mProduct = products.get(0);
                     ProductDetails.OneTimePurchaseOfferDetails offer = mProduct.getOneTimePurchaseOfferDetails();
                     if (offer != null)
                         mListener.onPriceLoaded(offer.getFormattedPrice());

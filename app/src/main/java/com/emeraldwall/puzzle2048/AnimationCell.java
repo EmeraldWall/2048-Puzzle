@@ -1,4 +1,4 @@
-package com.gameditors.a2048;
+package com.emeraldwall.puzzle2048;
 
 class AnimationCell extends Cell
 {

@@ -1,4 +1,4 @@
-package com.gameditors.a2048;
+package com.emeraldwall.puzzle2048;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -233,15 +233,6 @@ public class MainGame
                         {
                             gameState = gameState + GAME_WIN; // Set win state
                             endGame();
-                        }
-
-                        if(!MainMenuActivity.mIsMainMenu)
-                        {
-                            if(merged.getValue() >= 32)
-                            {
-                                MainActivity.unlockAchievement(merged.getValue());
-                                mView.mActivity.pushAccomplishments();
-                            }
                         }
                     }
                     else

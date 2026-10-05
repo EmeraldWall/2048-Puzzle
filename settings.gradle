@@ -1,1 +1,17 @@
-include ':app', ':adad-client-3.1', ':adad-sdk-ad-5.1.1', ':adad-sdk-banner-5.1.1', ':adad-sdk-core-5.1.1'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = '2048 Puzzle'
+include ':app'

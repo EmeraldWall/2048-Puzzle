@@ -1,13 +1,27 @@
-# 2048 Game
-This is a fork of a game already published in Play store whose source code was made public by the original developers under the MIT license.
+# 2048 Puzzle
 
-This project contains:
-- This game is using Google Play Games services. it has leaderboard and achievements. you can keep it or not, it's related to you.
-- There's a library named Adad, it's an advertisement service in Iran. if you don't need it, delete it from lib folder and clean it from codes.
-- English language is supported.
+Android 2048 game with a permanent bottom ad banner that players remove with a one-time in-app purchase.
 
-Hints:
-- We kept all tokens from Google Play Games Service. You are advices to use your own.
+- Boards: 4x4, 5x5, 6x6, undo, tile removal, endless mode, custom background color
+- Ads: Google AdMob adaptive banner (bottom of the menu and game screens), EU/UK consent via Google UMP
+- Monetization: one-time "Remove ads" product through Google Play Billing, with "Restore purchase" in Settings
+- Language: English only
 
-<b>Gameplay loop</b><br>
-![Demo gameplay](https://github.com/GamEditor/2048-Android/blob/master/2048-Android.gif?raw=true)
+## Before you publish
+
+1. **AdMob**: create an app and a banner unit, then replace the test IDs in `app/build.gradle` (`admobAppId` and `ADMOB_BANNER_UNIT_ID`, release block). Debug builds always use Google's test IDs.
+2. **Play Console**: create a one-time in-app product with ID `remove_ads` (or change `REMOVE_ADS_PRODUCT_ID` in `app/build.gradle`). Billing only works from a build uploaded to a Play Console test track, installed from Google Play.
+3. **Identity**: change `applicationId` / `namespace` if `com.emeraldwall.puzzle2048` is not the ID you want, replace the launcher icons, and set `support_email` in `app/src/main/res/values/strings.xml`.
+4. Publish a privacy policy that mentions AdMob and complete the Play Console Data safety and Ads declarations.
+
+## Build
+
+Requires JDK 17 and the Android SDK.
+
+```
+./gradlew assembleDebug
+```
+
+## License and credits
+
+MIT, see [LICENSE](LICENSE). This game derives from the open source 2048 code by Gabriele Cirulli and the Android ports built on it, all MIT licensed. Keep the license notices when you distribute the app.

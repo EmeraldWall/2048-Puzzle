@@ -4,7 +4,9 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.os.SystemClock;
 import android.preference.PreferenceManager;
+import android.view.HapticFeedbackConstants;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -46,6 +48,14 @@ public class MainGame
     public long lastScore = 0;
     private long bufferScore = 0;
 
+    // Combo: consecutive moves that each merged at least one pair
+    private static final int MAX_COMBO_LEVEL = 5;
+    private static final int MILESTONE_TILE = 256;
+    private static final long STATUS_DURATION_MS = 1300;
+    public int combo = 0;
+    private String statusText = null;
+    private long statusUntil = 0;
+
     public MainGame(Context context, MainView view)
     {
         mContext = context;
@@ -74,6 +84,7 @@ public class MainGame
         }
         score = 0;
         gameState = GAME_NORMAL;
+        resetCombo();
         addStartTiles();
         mView.refreshLastTime = true;
         mView.resyncTime();
@@ -159,6 +170,7 @@ public class MainGame
             grid.revertTiles();
             score = lastScore;
             gameState = lastGameState;
+            resetCombo();
             mView.refreshLastTime = true;
             mView.invalidate();
         }
@@ -191,6 +203,9 @@ public class MainGame
         List<Integer> traversalsX = buildTraversalsX(vector);
         List<Integer> traversalsY = buildTraversalsY(vector);
         boolean moved = false;
+        int mergeCount = 0;
+        int mergedSum = 0;
+        int biggestMerge = 0;
 
         prepareTiles();
 
@@ -227,6 +242,9 @@ public class MainGame
                         // Update the score
                         score = score + merged.getValue();
                         highScore = Math.max(score, highScore);
+                        mergeCount++;
+                        mergedSum += merged.getValue();
+                        biggestMerge = Math.max(biggestMerge, merged.getValue());
 
                         // The mighty 2048 tile
                         if (merged.getValue() >= winValue() && !gameWon())
@@ -251,11 +269,67 @@ public class MainGame
         if (moved)
         {
             saveUndoState();
+            applyComboAndFeedback(mergeCount, mergedSum, biggestMerge);
             addRandomTile();
             checkLose();
         }
         mView.resyncTime();
         mView.invalidate();
+    }
+
+    /**
+     * Builds the combo streak, awards the combo bonus, sets the pop-up banner and plays haptics.
+     * Bonus: +50% of the move's merged points per combo level above 1, up to +200%.
+     */
+    private void applyComboAndFeedback(int mergeCount, int mergedSum, int biggestMerge)
+    {
+        if (mergeCount == 0)
+        {
+            combo = 0;
+            return;
+        }
+
+        combo++;
+        int level = Math.min(combo, MAX_COMBO_LEVEL);
+        long bonus = (long) mergedSum * (level - 1) / 2;
+        if (bonus > 0)
+        {
+            score += bonus;
+            highScore = Math.max(score, highScore);
+            showStatus("COMBO x" + combo + "  +" + bonus);
+        }
+
+        if (biggestMerge >= MILESTONE_TILE)
+            showStatus("NEW TILE  " + biggestMerge + "!");
+
+        mView.performHapticFeedback(biggestMerge >= 512
+                ? HapticFeedbackConstants.LONG_PRESS
+                : HapticFeedbackConstants.KEYBOARD_TAP);
+    }
+
+    private void showStatus(String text)
+    {
+        statusText = text;
+        statusUntil = SystemClock.uptimeMillis() + STATUS_DURATION_MS;
+    }
+
+    private void resetCombo()
+    {
+        combo = 0;
+        statusText = null;
+    }
+
+    /** Banner text while it should be visible, otherwise null. */
+    public String getStatusText()
+    {
+        return statusText != null && SystemClock.uptimeMillis() < statusUntil ? statusText : null;
+    }
+
+    /** 1.0 while fully shown, fading to 0.0 over the last 400 ms. */
+    public float getStatusAlpha()
+    {
+        long left = statusUntil - SystemClock.uptimeMillis();
+        return left <= 0 ? 0f : Math.min(1f, left / 400f);
     }
 
     private void checkLose()

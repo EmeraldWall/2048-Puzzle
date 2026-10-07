@@ -7,6 +7,9 @@
     <item android:id="@+id/settings_remove_ads"
         android:title="@string/remove_ads"/>
 
+    <item android:id="@+id/settings_daily_reminder"
+        android:title="@string/daily_reminder_off"/>
+
     <item android:id="@+id/settings_restore_purchases"
         android:title="@string/restore_purchases"/>
 

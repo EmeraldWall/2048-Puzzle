@@ -1,10 +1,13 @@
 package com.emeraldwall.puzzle2048;
 
+import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.MenuInflater;
@@ -12,14 +15,26 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.emeraldwall.puzzle2048.ads.AdBannerController;
 import com.emeraldwall.puzzle2048.ads.AdFreeStore;
 import com.emeraldwall.puzzle2048.ads.BillingManager;
+import com.emeraldwall.puzzle2048.modes.DailyChallenge;
+import com.emeraldwall.puzzle2048.modes.GameMode;
+import com.emeraldwall.puzzle2048.modes.ProgressStore;
+import com.emeraldwall.puzzle2048.reminder.ReminderScheduler;
+
+import java.text.NumberFormat;
+import java.util.Locale;
 
 public class MainMenuActivity extends AppCompatActivity
         implements PopupMenu.OnMenuItemClickListener, BillingManager.Listener
@@ -28,6 +43,11 @@ public class MainMenuActivity extends AppCompatActivity
 
     private static int mRows = 4;
     public static int getRows() { return mRows; }
+
+    private static GameMode mMode = GameMode.CLASSIC;
+    public static GameMode getMode() { return mMode; }
+
+    private static final int REQUEST_NOTIFICATIONS = 31;
 
     private static final String BACKGROUND_COLOR_KEY = "BackgroundColor";
     public static int mBackgroundColor = 0;
@@ -68,6 +88,8 @@ public class MainMenuActivity extends AppCompatActivity
 
         SaveColors();
         LoadColors();
+        refreshHome();
+        maybeOfferReminder();
     }
 
     @Override
@@ -96,6 +118,12 @@ public class MainMenuActivity extends AppCompatActivity
             StartGame(5);
         else if (id == R.id.btn_start_6x6)
             StartGame(6);
+        else if (id == R.id.btn_daily)
+            startMode(GameMode.DAILY, DailyChallenge.goalFor(DailyChallenge.dayNumber()).rows);
+        else if (id == R.id.btn_time_attack)
+            startMode(GameMode.TIME_ATTACK, 4);
+        else if (id == R.id.btn_sprint)
+            startMode(GameMode.SPRINT, 4);
         else if (id == R.id.btn_remove_ads)
             mBilling.buy(this);
         else if (id == R.id.btn_settings)
@@ -116,6 +144,8 @@ public class MainMenuActivity extends AppCompatActivity
         inflater.inflate(R.menu.menus, popup.getMenu());
         popup.getMenu().findItem(R.id.settings_remove_ads)
                 .setVisible(!AdFreeStore.isAdsRemoved(this));
+        popup.getMenu().findItem(R.id.settings_daily_reminder).setTitle(
+                ProgressStore.isReminderEnabled(this) ? R.string.daily_reminder_on : R.string.daily_reminder_off);
         popup.show();
     }
 
@@ -161,12 +191,15 @@ public class MainMenuActivity extends AppCompatActivity
         if (id == R.id.settings_color_picker)
         {
             mRows = 4;  // because of its GameView!
+            mMode = GameMode.CLASSIC;
             startActivity(new Intent(this, ColorPickerActivity.class));
         }
         else if (id == R.id.settings_remove_ads)
             mBilling.buy(this);
         else if (id == R.id.settings_restore_purchases)
             mBilling.restore();
+        else if (id == R.id.settings_daily_reminder)
+            setReminder(!ProgressStore.isReminderEnabled(this));
         return false;
     }
 
@@ -227,8 +260,100 @@ public class MainMenuActivity extends AppCompatActivity
 
     private void StartGame(int rows)
     {
+        startMode(GameMode.CLASSIC, rows);
+    }
+
+    private void startMode(GameMode mode, int rows)
+    {
+        mMode = mode;
         mRows = rows;
         mIsMainMenu = false;
         startActivity(new Intent(this, MainActivity.class));
+    }
+
+    // Level, daily card and mode records
+    private void refreshHome()
+    {
+        NumberFormat number = NumberFormat.getIntegerInstance(Locale.US);
+        int today = DailyChallenge.dayNumber();
+
+        long points = ProgressStore.totalPoints(this);
+        int level = ProgressStore.levelFor(points);
+        long start = ProgressStore.levelStart(level);
+        long next = ProgressStore.levelStart(level + 1);
+        ((TextView) findViewById(R.id.level_text)).setText("Level " + level);
+        ((ProgressBar) findViewById(R.id.level_bar)).setProgress((int) (100 * (points - start) / (next - start)));
+        ((TextView) findViewById(R.id.level_sub)).setText(
+                number.format(next - points) + " points to level " + (level + 1));
+
+        DailyChallenge.Goal goal = DailyChallenge.goalFor(today);
+        int streak = ProgressStore.currentStreak(this, today);
+        String streakText = streak > 0 ? "Streak: " + streak + (streak == 1 ? " day" : " days") : "No streak yet";
+        String status;
+        if (ProgressStore.hasPlayedDaily(this, today))
+        {
+            status = (ProgressStore.isGoalMet(this, today) ? "Goal complete. " : "Goal not reached yet. ")
+                    + "Best today: " + number.format(ProgressStore.dailyBestScore(this, today));
+        }
+        else
+            status = streak > 0 ? "Play today to keep your streak" : "Play today to start a streak";
+
+        ((Button) findViewById(R.id.btn_daily)).setText(
+                "DAILY CHALLENGE  " + DailyChallenge.label(today) + "\n"
+                + goal.title() + " on " + goal.rows + "x" + goal.rows + "\n"
+                + status + "\n" + streakText);
+
+        long taBest = MainGame.readHighScore(this, 4, GameMode.TIME_ATTACK);
+        ((Button) findViewById(R.id.btn_time_attack)).setText("TIME ATTACK\n60 seconds\nBest: "
+                + (taBest > 0 ? number.format(taBest) : "none"));
+
+        long sprintBest = ProgressStore.sprintBestMs(this);
+        ((Button) findViewById(R.id.btn_sprint)).setText("SPRINT\nReach 512 fast\nBest: "
+                + (sprintBest > 0 ? formatSprint(sprintBest) : "none"));
+    }
+
+    private static String formatSprint(long ms)
+    {
+        long seconds = ms / 1000;
+        return (seconds / 60) + ":" + (seconds % 60 < 10 ? "0" : "") + (seconds % 60) + "." + (ms % 1000) / 100;
+    }
+
+    // Daily reminder
+    private void setReminder(boolean enabled)
+    {
+        if (enabled)
+        {
+            ReminderScheduler.enable(this);
+            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_NOTIFICATIONS);
+            Toast.makeText(this, R.string.daily_reminder_enabled, Toast.LENGTH_SHORT).show();
+        }
+        else
+            ReminderScheduler.disable(this);
+    }
+
+    // Asked once, right after the player has tried their first daily challenge
+    private void maybeOfferReminder()
+    {
+        if (ProgressStore.wasReminderPrompted(this) || !ProgressStore.everPlayedDaily(this)
+                || ProgressStore.isReminderEnabled(this))
+            return;
+
+        ProgressStore.setReminderPrompted(this);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.reminder_prompt_title)
+                .setMessage(R.string.reminder_prompt_message)
+                .setPositiveButton(R.string.reminder_prompt_yes, new android.content.DialogInterface.OnClickListener()
+                {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which)
+                    {
+                        setReminder(true);
+                    }
+                })
+                .setNegativeButton(R.string.reminder_prompt_no, null)
+                .show();
     }
 }

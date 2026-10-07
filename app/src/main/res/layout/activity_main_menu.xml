@@ -8,118 +8,209 @@
     android:orientation="vertical"
     tools:context=".MainMenuActivity">
 
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:fillViewport="true">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <Button
-            android:id="@+id/btn_start_4x4"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_margin="8dp"
-            android:background="@drawable/cell_rectangle_2048"
-            android:onClick="onButtonsClick"
-            android:text="@string/size_4x4"
-            android:textAllCaps="false"
-            android:textColor="@color/text_white"
-            android:textSize="24sp" />
+            <TextView
+                android:id="@+id/level_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_black"
+                android:textSize="20sp"
+                android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/btn_start_5x5"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_margin="8dp"
-            android:background="@drawable/cell_rectangle_2048"
-            android:onClick="onButtonsClick"
-            android:text="@string/size_5x5"
-            android:textAllCaps="false"
-            android:textColor="@color/text_white"
-            android:textSize="24sp" />
+            <ProgressBar
+                android:id="@+id/level_bar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="12dp"
+                android:layout_marginTop="6dp"
+                android:max="100" />
 
-        <Button
-            android:id="@+id/btn_start_6x6"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_margin="8dp"
-            android:background="@drawable/cell_rectangle_2048"
-            android:onClick="onButtonsClick"
-            android:text="@string/size_6x6"
-            android:textAllCaps="false"
-            android:textColor="@color/text_white"
-            android:textSize="24sp" />
+            <TextView
+                android:id="@+id/level_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/text_black"
+                android:textSize="12sp" />
 
+            <Button
+                android:id="@+id/btn_daily"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/cell_rectangle_2048"
+                android:minHeight="96dp"
+                android:onClick="onButtonsClick"
+                android:padding="12dp"
+                android:textAllCaps="false"
+                android:textColor="@color/text_white"
+                android:textSize="16sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_time_attack"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/cell_rectangle_256"
+                android:minHeight="76dp"
+                android:padding="8dp"
+                android:onClick="onButtonsClick"
+                android:text=""
+                android:textAllCaps="false"
+                android:textColor="@color/text_white"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/btn_sprint"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/cell_rectangle_64"
+                android:minHeight="76dp"
+                android:padding="8dp"
+                android:onClick="onButtonsClick"
+                android:text=""
+                android:textAllCaps="false"
+                android:textColor="@color/text_white"
+                android:textSize="15sp" />
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/classic"
+                android:textColor="@color/text_black"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_start_4x4"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_margin="6dp"
+                android:background="@drawable/cell_rectangle_2048"
+                android:onClick="onButtonsClick"
+                android:text="@string/size_4x4"
+                android:textAllCaps="false"
+                android:textColor="@color/text_white"
+                android:textSize="24sp" />
+
+            <Button
+                android:id="@+id/btn_start_5x5"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_margin="6dp"
+                android:background="@drawable/cell_rectangle_2048"
+                android:onClick="onButtonsClick"
+                android:text="@string/size_5x5"
+                android:textAllCaps="false"
+                android:textColor="@color/text_white"
+                android:textSize="24sp" />
+
+            <Button
+                android:id="@+id/btn_start_6x6"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_margin="6dp"
+                android:background="@drawable/cell_rectangle_2048"
+                android:onClick="onButtonsClick"
+                android:text="@string/size_6x6"
+                android:textAllCaps="false"
+                android:textColor="@color/text_white"
+                android:textSize="24sp" />
+
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btn_remove_ads"
+                android:layout_width="wrap_content"
+                android:layout_height="56dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/cell_rectangle_512"
+                android:onClick="onButtonsClick"
+                android:paddingLeft="24dp"
+                android:paddingRight="24dp"
+                android:text="@string/remove_ads"
+                android:textAllCaps="false"
+                android:textColor="@color/text_white"
+                android:textSize="18sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/btn_settings"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_margin="4dp"
+                android:layout_weight="1"
+                android:contentDescription="@string/settings"
+                android:onClick="onButtonsClick"
+                android:src="@drawable/ic_settings" />
+
+            <ImageView
+                android:id="@+id/btn_send_email"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_margin="4dp"
+                android:layout_weight="1"
+                android:contentDescription="@string/contact_us"
+                android:onClick="onButtonsClick"
+                android:src="@drawable/ic_email" />
+
+            <ImageView
+                android:id="@+id/btn_rate"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_margin="4dp"
+                android:layout_weight="1"
+                android:contentDescription="@string/rate_us"
+                android:onClick="onButtonsClick"
+                android:src="@drawable/ic_rate" />
+
+            <ImageView
+                android:id="@+id/btn_share"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_margin="4dp"
+                android:layout_weight="1"
+                android:contentDescription="@string/share_with_friends"
+                android:onClick="onButtonsClick"
+                android:src="@drawable/ic_share" />
+
+            </LinearLayout>
         </LinearLayout>
-
-        <Button
-            android:id="@+id/btn_remove_ads"
-            android:layout_width="wrap_content"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/cell_rectangle_2048"
-            android:onClick="onButtonsClick"
-            android:paddingLeft="24dp"
-            android:paddingRight="24dp"
-            android:text="@string/remove_ads"
-            android:textAllCaps="false"
-            android:textColor="@color/text_white"
-            android:textSize="18sp" />
-
-        <LinearLayout
-            android:layout_width="300dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:orientation="horizontal">
-
-        <ImageView
-            android:id="@+id/btn_settings"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_margin="4dp"
-            android:layout_weight="1"
-            android:contentDescription="@string/settings"
-            android:onClick="onButtonsClick"
-            android:src="@drawable/ic_settings" />
-
-        <ImageView
-            android:id="@+id/btn_send_email"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_margin="4dp"
-            android:layout_weight="1"
-            android:contentDescription="@string/contact_us"
-            android:onClick="onButtonsClick"
-            android:src="@drawable/ic_email" />
-
-        <ImageView
-            android:id="@+id/btn_rate"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_margin="4dp"
-            android:layout_weight="1"
-            android:contentDescription="@string/rate_us"
-            android:onClick="onButtonsClick"
-            android:src="@drawable/ic_rate" />
-
-        <ImageView
-            android:id="@+id/btn_share"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_margin="4dp"
-            android:layout_weight="1"
-            android:contentDescription="@string/share_with_friends"
-            android:onClick="onButtonsClick"
-            android:src="@drawable/ic_share" />
-
-        </LinearLayout>
-    </LinearLayout>
+    </ScrollView>
 
     <!-- Permanent banner slot; collapses when ads are removed -->
     <FrameLayout

@@ -60,6 +60,8 @@ dependencies {
     implementation 'com.google.android.gms:play-services-ads:23.3.0'
     implementation 'com.google.android.ump:user-messaging-platform:3.0.0'
 
+    testImplementation 'junit:junit:4.13.2'
+
     // Remove-ads purchase
     implementation 'com.android.billingclient:billing:7.0.0'
 }

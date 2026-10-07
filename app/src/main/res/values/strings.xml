@@ -70,4 +70,17 @@
     <string name="loaded">Successfully loaded!</string>
     <string name="loading_failed">You don\'t have a saved game!</string>
     <string name="message_unable_saving_on_game_over">When the game is over, you can\'t make a backup!</string>
+
+    <!-- Modes and progression -->
+    <string name="classic">CLASSIC</string>
+    <string name="play_again">Play again</string>
+    <string name="share_result">Share</string>
+    <string name="back_to_menu">Menu</string>
+    <string name="daily_reminder_on">Daily reminder: on</string>
+    <string name="daily_reminder_off">Daily reminder: off</string>
+    <string name="daily_reminder_enabled">We will remind you around 6 pm if you have not played.</string>
+    <string name="reminder_prompt_title">Never miss a day</string>
+    <string name="reminder_prompt_message">Get one reminder each evening, only when you have not played today\'s challenge yet. You can turn it off any time in Settings.</string>
+    <string name="reminder_prompt_yes">Remind me</string>
+    <string name="reminder_prompt_no">No thanks</string>
 </resources>

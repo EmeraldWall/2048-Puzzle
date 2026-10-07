@@ -1,6 +1,7 @@
 package com.emeraldwall.puzzle2048;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 public class Grid
 {
@@ -17,11 +18,11 @@ public class Grid
         clearUndoGrid();
     }
 
-    public Cell randomAvailableCell()
+    public Cell randomAvailableCell(Random random)
     {
         ArrayList<Cell> availableCells = getAvailableCells();
         if (availableCells.size() >= 1)
-            return availableCells.get((int) Math.floor(Math.random() * availableCells.size()));
+            return availableCells.get(random.nextInt(availableCells.size()));
         return null;
     }
 

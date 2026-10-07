@@ -4,7 +4,9 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -25,6 +27,7 @@ public class MainView extends View
     public final MainGame game;
     //Internal variables
     private final Paint paint = new Paint();
+    private final Paint statusPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     public boolean hasSaveState = false;
     public boolean continueButtonEnabled = false;
     public int startingX;
@@ -157,6 +160,8 @@ public class MainView extends View
             if(!game.aGrid.isAnimationActive())
                 drawGameOverButtons(canvas);
         }
+
+        drawStatusBanner(canvas);
 
         //Refresh the screen if there is still an animation running
         if (game.aGrid.isAnimationActive())
@@ -490,6 +495,43 @@ public class MainView extends View
         paint.setTextSize(bodyTextSize);
         paint.setColor(getResources().getColor(R.color.text_black));
         canvas.drawText(getResources().getString(R.string.endless), startingX, sYIcons - centerText() * 2, paint);
+    }
+
+    // Pop-up pill over the top edge of the board: combo bonus and milestone tiles
+    private void drawStatusBanner(Canvas canvas)
+    {
+        String text = game.getStatusText();
+        if (text == null)
+            return;
+
+        float alpha = game.getStatusAlpha();
+        float maxWidth = (endingX - startingX) - gridWidth * 4f;
+
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setTextSize(bodyTextSize);
+        float textWidth = paint.measureText(text);
+        if (textWidth > maxWidth - textPaddingSize * 2)
+            paint.setTextSize(bodyTextSize * (maxWidth - textPaddingSize * 2) / textWidth);
+        textWidth = paint.measureText(text);
+
+        float pillWidth = textWidth + textPaddingSize * 2;
+        float pillHeight = paint.getTextSize() + textPaddingSize;
+        float centerX = (startingX + endingX) / 2f;
+        float top = startingY + gridWidth * 2f;
+        RectF pill = new RectF(centerX - pillWidth / 2, top, centerX + pillWidth / 2, top + pillHeight);
+
+        statusPaint.setColor(Color.argb((int) (220 * alpha), 0x77, 0x6e, 0x65));
+        canvas.drawRoundRect(pill, pillHeight / 2, pillHeight / 2, statusPaint);
+
+        paint.setColor(Color.argb((int) (255 * alpha), 0xf9, 0xf6, 0xf2));
+        canvas.drawText(text, centerX, top + pillHeight / 2 + textHeightShift(), paint);
+
+        postInvalidateOnAnimation();
+    }
+
+    private float textHeightShift()
+    {
+        return -(paint.descent() + paint.ascent()) / 2;
     }
 
     private void drawGameOverButtons(Canvas canvas)

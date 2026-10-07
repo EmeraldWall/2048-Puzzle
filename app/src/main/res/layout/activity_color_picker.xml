@@ -142,8 +142,12 @@
 
         <Button
             android:id="@+id/btn_accept_color"
+            style="@style/CardButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_margin="3dp"
+            android:background="@drawable/btn_sprint"
+            android:textColor="@color/text_white"
             android:layout_weight="1"
             android:onClick="AcceptColor"
             android:text="@string/accept_color"
@@ -151,8 +155,12 @@
 
         <Button
             android:id="@+id/btn_reset_to_default"
+            style="@style/CardButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_margin="3dp"
+            android:background="@drawable/btn_ads"
+            android:textColor="#7A4A00"
             android:layout_weight="1"
             android:onClick="ResetToDefaultColor"
             android:text="@string/reset_to_default_color"
@@ -160,8 +168,12 @@
 
         <Button
             android:id="@+id/btn_dont_accept_color"
+            style="@style/CardButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_margin="3dp"
+            android:background="@drawable/btn_size_pink"
+            android:textColor="@color/text_white"
             android:layout_weight="1"
             android:onClick="FinishActivity"
             android:text="@string/dont_accept_color"

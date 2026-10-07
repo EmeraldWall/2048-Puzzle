@@ -1,5 +1,9 @@
 # 2048 Puzzle
 
+![Menu](docs/screenshots/menu.png) ![Daily Challenge](docs/screenshots/daily_game.png)
+
+_Screens rendered from the real layouts and board code._
+
 Android 2048 game with a permanent bottom ad banner that players remove with a one-time in-app purchase.
 
 - Boards: 4x4, 5x5, 6x6, undo, tile removal, endless mode, custom background color
@@ -42,3 +46,9 @@ The adaptive icon (with themed-icon layer) and legacy fallbacks live in `app/src
 - Progress (level, streak, records, reminder choice) is local on the device in `modes/ProgressStore.java`. There are no accounts or leaderboards; add a backend later if you want global rankings.
 - Undo, tile removal and board snapshots are Classic only, so Daily, Time Attack and Sprint results stay comparable.
 - Run `./gradlew testDebugUnitTest` for the unit tests of the daily seed, goals, streak and level maths.
+
+## Look and feel
+
+- Candy colour palette for the tiles, board, buttons and dialogs: edit `app/src/main/res/values/colors.xml` and the `cell_rectangle_*`, `btn_*` drawables. The game background color is `colorBackground`.
+- Chunky 3D-style buttons and tiles are layer-list drawables, so they scale to any screen without extra image files.
+- Font: Fredoka Bold by the Fredoka Project Authors, SIL Open Font License 1.1 (`app/src/main/assets/Fredoka-OFL.txt`). Keep that license file with the app.

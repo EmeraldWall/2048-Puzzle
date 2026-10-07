@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
@@ -18,6 +19,7 @@ import com.emeraldwall.puzzle2048.modes.GameMode;
 
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Random;
 
 public class MainView extends View
 {
@@ -32,6 +34,7 @@ public class MainView extends View
     //Internal variables
     private final Paint paint = new Paint();
     private final Paint statusPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint decorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     public boolean hasSaveState = false;
     public boolean continueButtonEnabled = false;
     public int startingX;
@@ -66,6 +69,9 @@ public class MainView extends View
     private Drawable backgroundRectangle;
     private Drawable lightUpRectangle;
     private Drawable fadeRectangle;
+    private Drawable iconRectangle;
+    private Drawable scoreBoxRectangle;
+    private Drawable bestBoxRectangle;
     private Bitmap background = null;
     private BitmapDrawable loseGameOverlay;
     private BitmapDrawable winGameContinueOverlay;
@@ -96,9 +102,12 @@ public class MainView extends View
             backgroundRectangle = getDrawable(R.drawable.background_rectangle);
             lightUpRectangle = getDrawable(R.drawable.light_up_rectangle);
             fadeRectangle = getDrawable(R.drawable.fade_rectangle);
+            iconRectangle = getDrawable(R.drawable.icon_rectangle);
+            scoreBoxRectangle = getDrawable(R.drawable.score_box_rectangle);
+            bestBoxRectangle = getDrawable(R.drawable.best_box_rectangle);
             this.setBackgroundColor(MainMenuActivity.mBackgroundColor);
 
-            Typeface font = Typeface.createFromAsset(getResources().getAssets(), "ClearSans-Bold.ttf");
+            Typeface font = Typeface.createFromAsset(getResources().getAssets(), "Fredoka-Bold.ttf");
 
             paint.setTypeface(font);
             paint.setAntiAlias(true);
@@ -124,9 +133,12 @@ public class MainView extends View
             backgroundRectangle = getDrawable(R.drawable.background_rectangle);
             lightUpRectangle = getDrawable(R.drawable.light_up_rectangle);
             fadeRectangle = getDrawable(R.drawable.fade_rectangle);
+            iconRectangle = getDrawable(R.drawable.icon_rectangle);
+            scoreBoxRectangle = getDrawable(R.drawable.score_box_rectangle);
+            bestBoxRectangle = getDrawable(R.drawable.best_box_rectangle);
             this.setBackgroundColor(MainMenuActivity.mBackgroundColor);
 
-            Typeface font = Typeface.createFromAsset(getResources().getAssets(), "ClearSans-Bold.ttf");
+            Typeface font = Typeface.createFromAsset(getResources().getAssets(), "Fredoka-Bold.ttf");
 
             paint.setTypeface(font);
             paint.setAntiAlias(true);
@@ -219,12 +231,14 @@ public class MainView extends View
     private void drawCellText(Canvas canvas, int value)
     {
         int textShiftY = centerText();
-        if (value >= 8)
-            paint.setColor(getResources().getColor(R.color.text_white));
-        else
-            paint.setColor(getResources().getColor(R.color.text_black));
+        // Light tiles (2, 4 and the golden 2048) take dark text; every other tile takes white
+        boolean darkText = value <= 4 || value == 2048;
+        paint.setColor(getResources().getColor(darkText ? R.color.text_black : R.color.text_white));
+        if (!darkText)
+            paint.setShadowLayer(cellSize * 0.03f, 0, cellSize * 0.02f, 0x66000000);
 
-        canvas.drawText("" + value, cellSize / 2, cellSize / 2 - textShiftY, paint);
+        canvas.drawText("" + value, cellSize / 2, cellSize / 2 - textShiftY - cellSize * 0.03f, paint);
+        paint.clearShadowLayer();
     }
 
     private void drawScoreText(Canvas canvas)
@@ -249,8 +263,8 @@ public class MainView extends View
         int sXScore = eXScore - textWidthScore;
 
         //Outputting high-scores box
-        backgroundRectangle.setBounds(sXHighScore, sYAll, eXHighScore, eYAll);
-        backgroundRectangle.draw(canvas);
+        bestBoxRectangle.setBounds(sXHighScore, sYAll, eXHighScore, eYAll);
+        bestBoxRectangle.draw(canvas);
         paint.setTextSize(titleTextSize);
         paint.setColor(getResources().getColor(R.color.text_brown));
         canvas.drawText(getResources().getString(R.string.high_score), sXHighScore + textMiddleHighScore, titleStartYAll, paint);
@@ -259,8 +273,8 @@ public class MainView extends View
         canvas.drawText(String.valueOf(game.highScore), sXHighScore + textMiddleHighScore, bodyStartYAll, paint);
 
         //Outputting scores box
-        backgroundRectangle.setBounds(sXScore, sYAll, eXScore, eYAll);
-        backgroundRectangle.draw(canvas);
+        scoreBoxRectangle.setBounds(sXScore, sYAll, eXScore, eYAll);
+        scoreBoxRectangle.draw(canvas);
         paint.setTextSize(titleTextSize);
         paint.setColor(getResources().getColor(R.color.text_brown));
         canvas.drawText(getResources().getString(R.string.score), sXScore + textMiddleScore, titleStartYAll, paint);
@@ -276,7 +290,7 @@ public class MainView extends View
                     sXLoad + iconSize,
                     sYIcons + iconSize);
         else
-            drawDrawable(canvas, backgroundRectangle, sXLoad, sYIcons,
+            drawDrawable(canvas, iconRectangle, sXLoad, sYIcons,
                     sXLoad + iconSize,
                     sYIcons + iconSize);
 
@@ -294,7 +308,7 @@ public class MainView extends View
                     sXSave + iconSize,
                     sYIcons + iconSize);
         else
-            drawDrawable(canvas, backgroundRectangle, sXSave, sYIcons,
+            drawDrawable(canvas, iconRectangle, sXSave, sYIcons,
                     sXSave + iconSize,
                     sYIcons + iconSize);
 
@@ -312,7 +326,7 @@ public class MainView extends View
                     sXRemoveTiles + iconSize,
                     sYIcons + iconSize);
         else
-            drawDrawable(canvas, backgroundRectangle, sXRemoveTiles, sYIcons,
+            drawDrawable(canvas, iconRectangle, sXRemoveTiles, sYIcons,
                     sXRemoveTiles + iconSize,
                     sYIcons + iconSize);
 
@@ -330,7 +344,7 @@ public class MainView extends View
                     sXNewGame + iconSize,
                     sYIcons + iconSize);
         else
-            drawDrawable(canvas, backgroundRectangle, sXNewGame, sYIcons,
+            drawDrawable(canvas, iconRectangle, sXNewGame, sYIcons,
                     sXNewGame + iconSize,
                     sYIcons + iconSize);
 
@@ -348,7 +362,7 @@ public class MainView extends View
                     sXUndo + iconSize,
                     sYIcons + iconSize);
         else
-            drawDrawable(canvas, backgroundRectangle, sXUndo, sYIcons,
+            drawDrawable(canvas, iconRectangle, sXUndo, sYIcons,
                     sXUndo + iconSize,
                     sYIcons + iconSize);
 
@@ -366,7 +380,19 @@ public class MainView extends View
         paint.setTextAlign(Paint.Align.LEFT);
         int textShiftY = centerText() * 2;
         int headerStartY = sYAll - textShiftY;
-        canvas.drawText(getResources().getString(R.string.header), startingX, headerStartY, paint);
+
+        String header = getResources().getString(R.string.header);
+        int[] digitColors = {0xFFFF8C3D, 0xFFFF4F9A, 0xFF8F5CF2, 0xFF3E9CFF};
+        paint.setShadowLayer(headerTextSize * 0.04f, 0, headerTextSize * 0.04f, 0x55000000);
+        float x = startingX;
+        for (int i = 0; i < header.length(); i++)
+        {
+            String letter = header.substring(i, i + 1);
+            paint.setColor(digitColors[i % digitColors.length]);
+            canvas.drawText(letter, x, headerStartY, paint);
+            x += paint.measureText(letter) + headerTextSize * 0.025f;
+        }
+        paint.clearShadowLayer();
     }
 
     private void drawBackground(Canvas canvas)
@@ -585,10 +611,15 @@ public class MainView extends View
         float top = startingY + gridWidth * 2f;
         RectF pill = new RectF(centerX - pillWidth / 2, top, centerX + pillWidth / 2, top + pillHeight);
 
-        statusPaint.setColor(Color.argb((int) (220 * alpha), 0x77, 0x6e, 0x65));
+        // Soft shadow, then a white pill with navy text so it stands out on every tile colour
+        float lift = pillHeight * 0.12f;
+        statusPaint.setColor(Color.argb((int) (80 * alpha), 0, 0, 0));
+        canvas.drawRoundRect(new RectF(pill.left, pill.top + lift, pill.right, pill.bottom + lift),
+                pillHeight / 2, pillHeight / 2, statusPaint);
+        statusPaint.setColor(Color.argb((int) (245 * alpha), 0xFF, 0xFF, 0xFF));
         canvas.drawRoundRect(pill, pillHeight / 2, pillHeight / 2, statusPaint);
 
-        paint.setColor(Color.argb((int) (255 * alpha), 0xf9, 0xf6, 0xf2));
+        paint.setColor(Color.argb((int) (255 * alpha), 0x2B, 0x2D, 0x6E));
         canvas.drawText(text, centerX, top + pillHeight / 2 + textHeightShift(), paint);
 
         postInvalidateOnAnimation();
@@ -625,12 +656,14 @@ public class MainView extends View
             paint.setAlpha(255);
             paint.setTextSize(gameOverTextSize);
             paint.setTextAlign(Paint.Align.CENTER);
+            paint.setShadowLayer(gameOverTextSize * 0.05f, 0, gameOverTextSize * 0.04f, 0x99000000);
             int textBottom = middleY - centerText();
             canvas.drawText(getResources().getString(R.string.you_win), middleX, textBottom, paint);
             paint.setTextSize(bodyTextSize);
             String text = showButton ? getResources().getString(R.string.go_on) :
                     getResources().getString(R.string.for_now);
             canvas.drawText(text, middleX, textBottom + textPaddingSize * 2 - centerText() * 2, paint);
+            paint.clearShadowLayer();
         }
         else
         {
@@ -649,6 +682,7 @@ public class MainView extends View
     {
         background = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(background);
+        drawDecor(canvas, width, height);
         drawHeader(canvas);
         drawNewGameButton(canvas, false);
         // Undo, trash and snapshots are Classic-only: the other modes are about one clean run
@@ -662,6 +696,42 @@ public class MainView extends View
 
         drawBackground(canvas);
         drawBackgroundGrid(canvas);
+    }
+
+    // Soft confetti behind the board; translucent so it works on any background colour
+    private void drawDecor(Canvas canvas, int width, int height)
+    {
+        int[] colors = {0x66FFFFFF, 0x77FFE066, 0x66FF8CC4, 0x55FFFFFF, 0x66B58CFF, 0x66FFFFFF};
+        Random random = new Random(7);
+        for (int i = 0; i < 26; i++)
+        {
+            float cx = random.nextFloat() * width;
+            float cy = random.nextFloat() * height;
+            float radius = cellSize * (0.05f + random.nextFloat() * 0.13f);
+            decorPaint.setColor(colors[i % colors.length]);
+            if (i % 3 == 0)
+                drawSparkle(canvas, cx, cy, radius * 1.4f);
+            else
+                canvas.drawCircle(cx, cy, radius, decorPaint);
+        }
+    }
+
+    private void drawSparkle(Canvas canvas, float cx, float cy, float radius)
+    {
+        Path path = new Path();
+        for (int k = 0; k < 8; k++)
+        {
+            double angle = Math.PI / 4 * k - Math.PI / 2;
+            float r = k % 2 == 0 ? radius : radius * 0.3f;
+            float px = cx + (float) (r * Math.cos(angle));
+            float py = cy + (float) (r * Math.sin(angle));
+            if (k == 0)
+                path.moveTo(px, py);
+            else
+                path.lineTo(px, py);
+        }
+        path.close();
+        canvas.drawPath(path, decorPaint);
     }
 
     private void createBitmapCells()

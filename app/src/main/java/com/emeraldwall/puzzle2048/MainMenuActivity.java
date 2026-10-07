@@ -12,7 +12,11 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.RelativeSizeSpan;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
@@ -65,13 +69,10 @@ public class MainMenuActivity extends AppCompatActivity
 
         mIsMainMenu = true;
 
-        Typeface font = Typeface.createFromAsset(getAssets(), "ClearSans-Bold.ttf");
-        ((Button) findViewById(R.id.btn_start_4x4)).setTypeface(font);
-        ((Button) findViewById(R.id.btn_start_5x5)).setTypeface(font);
-        ((Button) findViewById(R.id.btn_start_6x6)).setTypeface(font);
+        applyFont(findViewById(R.id.activity_main_menu),
+                Typeface.createFromAsset(getAssets(), "Fredoka-Bold.ttf"));
 
         mRemoveAdsButton = findViewById(R.id.btn_remove_ads);
-        mRemoveAdsButton.setTypeface(font);
         mAdsWereRemoved = AdFreeStore.isAdsRemoved(this);
         updateRemoveAdsButton(mAdsWereRemoved);
 
@@ -271,6 +272,33 @@ public class MainMenuActivity extends AppCompatActivity
         startActivity(new Intent(this, MainActivity.class));
     }
 
+    private static void applyFont(View view, Typeface font)
+    {
+        if (view instanceof TextView)
+            ((TextView) view).setTypeface(font);
+        else if (view instanceof ViewGroup)
+        {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++)
+                applyFont(group.getChildAt(i), font);
+        }
+    }
+
+    /** A big title line followed by smaller detail lines, for the mode cards. */
+    private static CharSequence card(String title, float titleScale, String... details)
+    {
+        SpannableStringBuilder text = new SpannableStringBuilder(title);
+        text.setSpan(new RelativeSizeSpan(titleScale), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        for (String line : details)
+        {
+            text.append('\n');
+            int start = text.length();
+            text.append(line);
+            text.setSpan(new RelativeSizeSpan(0.92f), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return text;
+    }
+
     // Level, daily card and mode records
     private void refreshHome()
     {
@@ -298,18 +326,17 @@ public class MainMenuActivity extends AppCompatActivity
         else
             status = streak > 0 ? "Play today to keep your streak" : "Play today to start a streak";
 
-        ((Button) findViewById(R.id.btn_daily)).setText(
-                "DAILY CHALLENGE  " + DailyChallenge.label(today) + "\n"
-                + goal.title() + " on " + goal.rows + "x" + goal.rows + "\n"
-                + status + "\n" + streakText);
+        ((Button) findViewById(R.id.btn_daily)).setText(card(
+                "Daily Challenge  " + DailyChallenge.label(today), 1.35f,
+                goal.title() + " on " + goal.rows + "x" + goal.rows, status, streakText));
 
         long taBest = MainGame.readHighScore(this, 4, GameMode.TIME_ATTACK);
-        ((Button) findViewById(R.id.btn_time_attack)).setText("TIME ATTACK\n60 seconds\nBest: "
-                + (taBest > 0 ? number.format(taBest) : "none"));
+        ((Button) findViewById(R.id.btn_time_attack)).setText(card("Time Attack", 1.3f,
+                "60 seconds", "Best: " + (taBest > 0 ? number.format(taBest) : "none")));
 
         long sprintBest = ProgressStore.sprintBestMs(this);
-        ((Button) findViewById(R.id.btn_sprint)).setText("SPRINT\nReach 512 fast\nBest: "
-                + (sprintBest > 0 ? formatSprint(sprintBest) : "none"));
+        ((Button) findViewById(R.id.btn_sprint)).setText(card("Sprint", 1.3f,
+                "Reach 512 fast", "Best: " + (sprintBest > 0 ? formatSprint(sprintBest) : "none")));
     }
 
     private static String formatSprint(long ms)

@@ -3,6 +3,10 @@
 Android 2048 game with a permanent bottom ad banner that players remove with a one-time in-app purchase.
 
 - Boards: 4x4, 5x5, 6x6, undo, tile removal, endless mode, custom background color
+- Daily Challenge: one shared puzzle per UTC day (same tile sequence and goal for everyone), unlimited retries, best score of the day, daily streak, shareable result
+- Time Attack: 60 seconds, every merge adds time, beat your best score
+- Sprint: reach 512 as fast as you can, tracks your best time
+- Progression: player level from all points scored, bonus points for daily goals, optional evening reminder (only sent if you have not played that day)
 - Combos: merge on consecutive moves to build a streak; the score bonus grows from +50% up to +200% of the move's points, with a pop-up banner
 - Milestones: banner and stronger haptic feedback when you create a 256+ tile (512+ for the strong buzz)
 - Ads: Google AdMob adaptive banner (bottom of the menu and game screens), EU/UK consent via Google UMP
@@ -31,3 +35,10 @@ MIT, see [LICENSE](LICENSE). This game derives from the open source 2048 code by
 ## Launcher icon
 
 The adaptive icon (with themed-icon layer) and legacy fallbacks live in `app/src/main/res/mipmap-*`. `store/play_store_icon_512.png` is the 512px version for the Play Console listing.
+
+## Modes and retention notes
+
+- Daily puzzles come from `modes/DailyChallenge.java` (goal list and seed). Add goals to the `GOALS` array to change the rotation; a new daily goal should stay achievable within a few minutes of play.
+- Progress (level, streak, records, reminder choice) is local on the device in `modes/ProgressStore.java`. There are no accounts or leaderboards; add a backend later if you want global rankings.
+- Undo, tile removal and board snapshots are Classic only, so Daily, Time Attack and Sprint results stay comparable.
+- Run `./gradlew testDebugUnitTest` for the unit tests of the daily seed, goals, streak and level maths.

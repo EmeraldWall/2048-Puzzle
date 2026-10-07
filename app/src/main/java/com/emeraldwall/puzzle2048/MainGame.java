@@ -12,6 +12,11 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+
+import com.emeraldwall.puzzle2048.modes.DailyChallenge;
+import com.emeraldwall.puzzle2048.modes.GameMode;
+import com.emeraldwall.puzzle2048.modes.ProgressStore;
 
 public class MainGame
 {
@@ -53,6 +58,59 @@ public class MainGame
     private static final int MILESTONE_TILE = 256;
     private static final long STATUS_DURATION_MS = 1300;
     public int combo = 0;
+
+    // Game modes
+    private static final long TIME_ATTACK_START_MS = 60_000;
+    private static final long TIME_ATTACK_MAX_MS = 90_000;
+    private static final long TIME_ATTACK_BONUS_PER_MERGE_MS = 400;
+    private static final int SPRINT_TARGET = 512;
+    public final GameMode mode;
+    private final int runDay;
+    private Random rng = new Random();
+    public int moves = 0;
+    private long elapsedMs = 0;
+    private long timeLeftMs = TIME_ATTACK_START_MS;
+    private boolean clockRunning = false;
+    private long lastTickUptime = 0;
+    private boolean goalMet = false;
+    private boolean runReported = false;
+    private long bestAtRunStart = 0;
+    public RunListener runListener = null;
+
+    /** What the player achieved in a finished Daily, Time Attack or Sprint run. */
+    public static final class RunResult
+    {
+        public final GameMode mode;
+        public final int day;
+        public final long score;
+        public final int moves;
+        public final long elapsedMs;
+        public final boolean won;
+        public final boolean goalMet;
+        public final boolean newBest;
+        public final int streak;
+        public final int bestScoreToday;
+
+        RunResult(GameMode mode, int day, long score, int moves, long elapsedMs, boolean won,
+                  boolean goalMet, boolean newBest, int streak, int bestScoreToday)
+        {
+            this.mode = mode;
+            this.day = day;
+            this.score = score;
+            this.moves = moves;
+            this.elapsedMs = elapsedMs;
+            this.won = won;
+            this.goalMet = goalMet;
+            this.newBest = newBest;
+            this.streak = streak;
+            this.bestScoreToday = bestScoreToday;
+        }
+    }
+
+    public interface RunListener
+    {
+        void onRunFinished(RunResult result);
+    }
     private String statusText = null;
     private long statusUntil = 0;
 
@@ -60,6 +118,8 @@ public class MainGame
     {
         mContext = context;
         mView = view;
+        mode = MainMenuActivity.getMode();
+        runDay = DailyChallenge.dayNumber();
         endingMaxValue = (int) Math.pow(2, view.numCellTypes - 1);
     }
 
@@ -82,9 +142,11 @@ public class MainGame
             highScore = score;
             recordHighScore();
         }
+        bestAtRunStart = highScore;
         score = 0;
         gameState = GAME_NORMAL;
         resetCombo();
+        resetRun();
         addStartTiles();
         mView.refreshLastTime = true;
         mView.resyncTime();
@@ -102,8 +164,8 @@ public class MainGame
     {
         if (grid.isCellsAvailable())
         {
-            int value = Math.random() < 0.9 ? 2 : 4;
-            Tile tile = new Tile(grid.randomAvailableCell(), value);
+            int value = rng.nextDouble() < 0.9 ? 2 : 4;
+            Tile tile = new Tile(grid.randomAvailableCell(rng), value);
             spawnTile(tile);
         }
     }
@@ -120,7 +182,7 @@ public class MainGame
         final int rows = MainMenuActivity.getRows();
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
         SharedPreferences.Editor editor = settings.edit();
-        editor.putLong(HIGH_SCORE + rows, highScore);
+        editor.putLong(HIGH_SCORE + rows + mode.keySuffix(), highScore);
         editor.apply();
     }
 
@@ -128,7 +190,7 @@ public class MainGame
     {
         final int rows = MainMenuActivity.getRows();
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
-        return settings.getLong(HIGH_SCORE + rows, -1);
+        return settings.getLong(HIGH_SCORE + rows + mode.keySuffix(), -1);
     }
 
     private void prepareTiles()
@@ -163,7 +225,7 @@ public class MainGame
 
     public void revertUndoState()
     {
-        if (canUndo)
+        if (canUndo && mode.isClassic())
         {
             canUndo = false;
             aGrid.cancelAnimations();
@@ -203,6 +265,7 @@ public class MainGame
         List<Integer> traversalsX = buildTraversalsX(vector);
         List<Integer> traversalsY = buildTraversalsY(vector);
         boolean moved = false;
+        final long scoreBefore = score;
         int mergeCount = 0;
         int mergedSum = 0;
         int biggestMerge = 0;
@@ -270,6 +333,10 @@ public class MainGame
         {
             saveUndoState();
             applyComboAndFeedback(mergeCount, mergedSum, biggestMerge);
+            ProgressStore.addPoints(mContext, score - scoreBefore);
+            moves++;
+            if (!mode.isClassic())
+                onModeMove(mergeCount);
             addRandomTile();
             checkLose();
         }
@@ -332,6 +399,184 @@ public class MainGame
         return left <= 0 ? 0f : Math.min(1f, left / 400f);
     }
 
+    // ---------------------------------------------------------------- game modes
+
+    private void resetRun()
+    {
+        rng = mode == GameMode.DAILY ? new Random(DailyChallenge.seedFor(runDay)) : new Random();
+        moves = 0;
+        elapsedMs = 0;
+        timeLeftMs = TIME_ATTACK_START_MS;
+        clockRunning = false;
+        goalMet = false;
+        runReported = false;
+    }
+
+    /** Bookkeeping after a move that changed the board in Daily, Time Attack or Sprint. */
+    private void onModeMove(int mergeCount)
+    {
+        if (!clockRunning)
+        {
+            clockRunning = true;
+            lastTickUptime = SystemClock.uptimeMillis();
+        }
+
+        if (mode == GameMode.TIME_ATTACK && mergeCount > 0)
+            timeLeftMs = Math.min(TIME_ATTACK_MAX_MS, timeLeftMs + TIME_ATTACK_BONUS_PER_MERGE_MS * mergeCount);
+
+        if (mode == GameMode.DAILY)
+        {
+            if (!goalMet && getGoal().isMet(bestTile(), score, moves))
+            {
+                goalMet = true;
+                showStatus("GOAL COMPLETE!");
+                mView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                saveDailyProgress();
+            }
+            else if (moves == ProgressStore.STREAK_MIN_MOVES)
+                saveDailyProgress();
+        }
+    }
+
+    /** Called every frame by the view; advances the clock of timed modes. */
+    public void tick()
+    {
+        if (!clockRunning || !isActive())
+            return;
+
+        long now = SystemClock.uptimeMillis();
+        // A long gap means the screen was paused, so do not charge that time to the player.
+        long dt = Math.min(now - lastTickUptime, 250);
+        lastTickUptime = now;
+        elapsedMs += dt;
+
+        if (mode == GameMode.TIME_ATTACK)
+        {
+            timeLeftMs -= dt;
+            if (timeLeftMs <= 0)
+            {
+                timeLeftMs = 0;
+                gameState = GAME_LOST;
+                endGame();
+            }
+        }
+    }
+
+    public boolean isClockRunning()
+    {
+        return clockRunning && isActive();
+    }
+
+    public long getTimeLeftMs()
+    {
+        return timeLeftMs;
+    }
+
+    public long getElapsedMs()
+    {
+        return elapsedMs;
+    }
+
+    public int getRunDay()
+    {
+        return runDay;
+    }
+
+    public DailyChallenge.Goal getGoal()
+    {
+        return DailyChallenge.goalFor(runDay);
+    }
+
+    public boolean isGoalMet()
+    {
+        return goalMet;
+    }
+
+    public String getGoalLine()
+    {
+        switch (mode)
+        {
+            case DAILY:
+                DailyChallenge.Goal goal = getGoal();
+                String state = goalMet ? "done" : goal.isLost(moves) ? "missed" : goal.progress(bestTile(), score, moves);
+                return "Goal: " + goal.title() + " (" + state + ")";
+            case TIME_ATTACK:
+                return "Every merge adds time";
+            case SPRINT:
+                return "Reach " + SPRINT_TARGET + " as fast as you can";
+            default:
+                return null;
+        }
+    }
+
+    private int bestTile()
+    {
+        int best = 0;
+        for (Tile[] column : grid.field)
+            for (Tile tile : column)
+                if (tile != null)
+                    best = Math.max(best, tile.getValue());
+        return best;
+    }
+
+    /** Stores the daily result so far; also called when the player leaves mid-run. */
+    public void saveDailyProgress()
+    {
+        if (mode == GameMode.DAILY)
+            ProgressStore.recordDailyRun(mContext, runDay, score, goalMet, moves);
+    }
+
+    /** Best score recorded for a mode and board size; -1 when never played. */
+    public static long readHighScore(Context context, int rows, GameMode mode)
+    {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+                .getLong(HIGH_SCORE + rows + mode.keySuffix(), -1);
+    }
+
+    private void finishRun()
+    {
+        if (runReported || mode.isClassic())
+            return;
+        runReported = true;
+        clockRunning = false;
+
+        boolean won = gameWon();
+        boolean newBest;
+        if (mode == GameMode.SPRINT)
+        {
+            long previous = ProgressStore.sprintBestMs(mContext);
+            newBest = won && (previous < 0 || elapsedMs < previous);
+            if (newBest)
+                ProgressStore.setSprintBestMs(mContext, elapsedMs);
+        }
+        else
+            newBest = score > 0 && score > bestAtRunStart;
+
+        int streak = 0;
+        int bestToday = 0;
+        if (mode == GameMode.DAILY)
+        {
+            saveDailyProgress();
+            streak = ProgressStore.currentStreak(mContext, runDay);
+            bestToday = ProgressStore.dailyBestScore(mContext, runDay);
+        }
+
+        if (runListener != null)
+        {
+            final RunResult result = new RunResult(mode, runDay, score, moves, elapsedMs, won,
+                    goalMet, newBest, streak, bestToday);
+            final RunListener listener = runListener;
+            mView.post(new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    listener.onRunFinished(result);
+                }
+            });
+        }
+    }
+
     private void checkLose()
     {
         if (!movesAvailable() && !gameWon())
@@ -349,6 +594,7 @@ public class MainGame
             highScore = score;
             recordHighScore();
         }
+        finishRun();
     }
 
     private Cell getVector(int direction)
@@ -444,6 +690,10 @@ public class MainGame
 
     private int winValue()
     {
+        if (mode == GameMode.SPRINT)
+            return SPRINT_TARGET;
+        if (mode == GameMode.DAILY || mode == GameMode.TIME_ATTACK)
+            return endingMaxValue;
         if (!canContinue())
             return endingMaxValue;
         else
@@ -522,6 +772,9 @@ public class MainGame
 
     public void RemoveTilesWithTrash()
     {
+        if (!mode.isClassic())
+            return;
+
         final int rows = MainMenuActivity.getRows();
         int cellCount = (rows * rows) - (rows + 2);
 
@@ -567,6 +820,9 @@ public class MainGame
 
     public void loadCurrentBoard()
     {
+        if (!mode.isClassic())
+            return;
+
         //Stopping all animations
         mView.game.aGrid.cancelAnimations();
 
@@ -624,6 +880,9 @@ public class MainGame
 
     public void saveCurrentBoard()
     {
+        if (!mode.isClassic())
+            return;
+
         if(!mView.game.isActive())
         {
             mView.game.makeToast(R.string.message_unable_saving_on_game_over);

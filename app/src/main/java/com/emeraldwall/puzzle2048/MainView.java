@@ -13,7 +13,11 @@ import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.view.View;
 
+import com.emeraldwall.puzzle2048.modes.DailyChallenge;
+import com.emeraldwall.puzzle2048.modes.GameMode;
+
 import java.util.ArrayList;
+import java.util.Locale;
 
 public class MainView extends View
 {
@@ -145,12 +149,21 @@ public class MainView extends View
     public void onDraw(Canvas canvas)
     {
         //Reset the transparency of the screen
+        game.tick();
         canvas.drawBitmap(background, 0, 0, paint);
         drawScoreText(canvas);
         drawCells(canvas);
 
-        if (!game.canContinue())
-            drawEndlessText(canvas);
+        if (game.mode.isClassic())
+        {
+            if (!game.canContinue())
+                drawEndlessText(canvas);
+        }
+        else
+        {
+            drawModeHud(canvas);
+            drawGoalLine(canvas);
+        }
 
         // checking game over here
         if (!game.isActive())
@@ -162,6 +175,10 @@ public class MainView extends View
         }
 
         drawStatusBanner(canvas);
+
+        // Keep the clock text moving between touches
+        if (game.isClockRunning())
+            postInvalidateDelayed(100);
 
         //Refresh the screen if there is still an animation running
         if (game.aGrid.isAnimationActive())
@@ -470,7 +487,7 @@ public class MainView extends View
         BitmapDrawable displayOverlay = null;
         if (game.gameWon())
         {
-            if (game.canContinue())
+            if (game.canContinue() && game.mode.isClassic())
             {
                 continueButtonEnabled = true;
                 displayOverlay = winGameContinueOverlay;
@@ -495,6 +512,54 @@ public class MainView extends View
         paint.setTextSize(bodyTextSize);
         paint.setColor(getResources().getColor(R.color.text_black));
         canvas.drawText(getResources().getString(R.string.endless), startingX, sYIcons - centerText() * 2, paint);
+    }
+
+    // Left of the icon row in the non-classic modes: what you are playing and the clock
+    private void drawModeHud(Canvas canvas)
+    {
+        String text;
+        switch (game.mode)
+        {
+            case DAILY:
+                text = "DAILY " + DailyChallenge.label(game.getRunDay()).toUpperCase(Locale.US);
+                break;
+            case TIME_ATTACK:
+                text = "TIME " + formatClock(game.getTimeLeftMs(), false);
+                break;
+            default:
+                text = "SPRINT " + formatClock(game.getElapsedMs(), true);
+                break;
+        }
+
+        paint.setTextAlign(Paint.Align.LEFT);
+        paint.setTextSize(bodyTextSize);
+        boolean urgent = game.mode == GameMode.TIME_ATTACK && game.getTimeLeftMs() <= 10_000 && game.isClockRunning();
+        paint.setColor(urgent ? 0xFFC62828 : getResources().getColor(R.color.text_black));
+        canvas.drawText(text, startingX, sYIcons - centerText() * 2, paint);
+    }
+
+    // Under the board: today's goal, or a one-line hint for the timed modes
+    private void drawGoalLine(Canvas canvas)
+    {
+        String line = game.getGoalLine();
+        if (line == null)
+            return;
+
+        float maxWidth = endingX - startingX;
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setTextSize(bodyTextSize * 0.8f);
+        float width = paint.measureText(line);
+        if (width > maxWidth)
+            paint.setTextSize(paint.getTextSize() * maxWidth / width);
+        paint.setColor(game.isGoalMet() ? 0xFF2E7D32 : getResources().getColor(R.color.text_black));
+        canvas.drawText(line, (startingX + endingX) / 2f, endingY + gridWidth * 2f + paint.getTextSize(), paint);
+    }
+
+    private static String formatClock(long ms, boolean tenths)
+    {
+        long totalSeconds = ms / 1000;
+        String base = (totalSeconds / 60) + ":" + (totalSeconds % 60 < 10 ? "0" : "") + (totalSeconds % 60);
+        return tenths ? base + "." + (ms % 1000) / 100 : base;
     }
 
     // Pop-up pill over the top edge of the board: combo bonus and milestone tiles
@@ -537,6 +602,8 @@ public class MainView extends View
     private void drawGameOverButtons(Canvas canvas)
     {
         drawNewGameButton(canvas, true);
+        if (!game.mode.isClassic())
+            return;
         drawTrashButton(canvas, !game.gameWon() && MainActivity.mRewardDeletes > 0 ? true : false);
         drawUndoButton(canvas, true);
         drawLoadButton(canvas, true);
@@ -584,10 +651,14 @@ public class MainView extends View
         Canvas canvas = new Canvas(background);
         drawHeader(canvas);
         drawNewGameButton(canvas, false);
-        drawUndoButton(canvas, false);
-        drawTrashButton(canvas, false);
-        drawLoadButton(canvas, true);   // if checking are there a save state or no, is better!
-        drawSaveButton(canvas, true);
+        // Undo, trash and snapshots are Classic-only: the other modes are about one clean run
+        if (game.mode.isClassic())
+        {
+            drawUndoButton(canvas, false);
+            drawTrashButton(canvas, false);
+            drawLoadButton(canvas, true);   // if checking are there a save state or no, is better!
+            drawSaveButton(canvas, true);
+        }
 
         drawBackground(canvas);
         drawBackgroundGrid(canvas);

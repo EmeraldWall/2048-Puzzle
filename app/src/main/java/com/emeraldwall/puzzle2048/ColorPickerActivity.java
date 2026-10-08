@@ -56,7 +56,7 @@ public class ColorPickerActivity extends AppCompatActivity implements SeekBar.On
 
     public void ResetToDefaultColor(View view)
     {
-        MainMenuActivity.mBackgroundColor = 0xFFFAF8EF;
+        MainMenuActivity.mBackgroundColor = getResources().getColor(R.color.colorBackground);
         Toast.makeText(this, getString(R.string.background_color_has_been_reset_to_default), Toast.LENGTH_SHORT).show();
         finish();
     }

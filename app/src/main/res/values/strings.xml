@@ -73,6 +73,7 @@
 
     <!-- Modes and progression -->
     <string name="classic">CLASSIC</string>
+    <string name="tagline">Slide, merge and win!</string>
     <string name="play_again">Play again</string>
     <string name="share_result">Share</string>
     <string name="back_to_menu">Menu</string>

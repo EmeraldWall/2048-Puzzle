@@ -35,10 +35,9 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
-            // TODO: replace both with your real AdMob IDs before publishing.
-            // Until then the release build also serves test ads.
-            manifestPlaceholders = [admobAppId: 'ca-app-pub-3940256099942544~3347511713']
-            buildConfigField 'String', 'ADMOB_BANNER_UNIT_ID', '"ca-app-pub-3940256099942544/9214589741"'
+            // Live AdMob IDs (public by design; they ship inside every APK)
+            manifestPlaceholders = [admobAppId: 'ca-app-pub-3331893734282241~7035696459']
+            buildConfigField 'String', 'ADMOB_BANNER_UNIT_ID', '"ca-app-pub-3331893734282241/7164433824"'
         }
     }
 
@@ -56,9 +55,8 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // Banner ads + EU/UK consent form
+    // Banner ads
     implementation 'com.google.android.gms:play-services-ads:23.3.0'
-    implementation 'com.google.android.ump:user-messaging-platform:3.0.0'
 
     testImplementation 'junit:junit:4.13.2'
 

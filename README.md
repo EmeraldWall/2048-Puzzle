@@ -13,13 +13,13 @@ Android 2048 game with a permanent bottom ad banner that players remove with a o
 - Progression: player level from all points scored, bonus points for daily goals, optional evening reminder (only sent if you have not played that day)
 - Combos: merge on consecutive moves to build a streak; the score bonus grows from +50% up to +200% of the move's points, with a pop-up banner
 - Milestones: banner and stronger haptic feedback when you create a 256+ tile (512+ for the strong buzz)
-- Ads: Google AdMob adaptive banner (bottom of the menu and game screens), EU/UK consent via Google UMP
+- Ads: Google AdMob adaptive banner (bottom of the menu and game screens). Every request is tagged child-directed with a G content rating, so ads are non-personalized and there is no consent form
 - Monetization: one-time "Remove ads" product through Google Play Billing, with "Restore purchase" in Settings
 - Language: English only
 
 ## Before you publish
 
-1. **AdMob**: create an app and a banner unit, then replace the test IDs in `app/build.gradle` (`admobAppId` and `ADMOB_BANNER_UNIT_ID`, release block). Debug builds always use Google's test IDs.
+1. **AdMob**: the release block of `app/build.gradle` holds the live App ID and banner unit ID. Debug builds always use Google's test IDs, so tap ads only there. After publishing, link the app to its Play listing in AdMob. In Play Console, choose the target audience that matches the child-directed ad settings in the code.
 2. **Play Console**: create a one-time in-app product with ID `remove_ads` (or change `REMOVE_ADS_PRODUCT_ID` in `app/build.gradle`). Billing only works from a build uploaded to a Play Console test track, installed from Google Play.
 3. **Identity**: change `applicationId` / `namespace` if `com.emeraldwall.puzzle2048` is not the ID you want, and set `support_email` in `app/src/main/res/values/strings.xml`.
 4. Publish a privacy policy that mentions AdMob and complete the Play Console Data safety and Ads declarations.

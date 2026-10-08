@@ -10,15 +10,17 @@ import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
-import com.google.android.ump.ConsentInformation;
-import com.google.android.ump.ConsentRequestParameters;
-import com.google.android.ump.UserMessagingPlatform;
+import com.google.android.gms.ads.RequestConfiguration;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Owns the permanent bottom banner of one screen. Collapses the container completely
- * when the user has purchased "remove ads", and loads nothing until consent allows it.
+ * when the user has purchased "remove ads".
+ *
+ * The game is aimed at children, so every ad request is tagged as child-directed and capped
+ * at the G rating (Google Play Families policy). That makes ads non-personalized and means
+ * no consent form is shown.
  */
 public final class AdBannerController
 {
@@ -67,24 +69,7 @@ public final class AdBannerController
 
         mContainer.setVisibility(View.VISIBLE);
         if (mAdView == null)
-            gatherConsentThenLoad();
-    }
-
-    private void gatherConsentThenLoad()
-    {
-        final ConsentInformation consent = UserMessagingPlatform.getConsentInformation(mActivity);
-
-        // Consent from an earlier session may already allow ads.
-        if (consent.canRequestAds())
             loadBanner();
-
-        consent.requestConsentInfoUpdate(mActivity, new ConsentRequestParameters.Builder().build(),
-                () -> UserMessagingPlatform.loadAndShowConsentFormIfRequired(mActivity, formError ->
-                {
-                    if (consent.canRequestAds())
-                        loadBanner();
-                }),
-                formError -> { /* keep whatever consent state we already have */ });
     }
 
     private void loadBanner()
@@ -95,7 +80,15 @@ public final class AdBannerController
             return;
 
         if (sMobileAdsStarted.compareAndSet(false, true))
+        {
+            // Must be set before the SDK starts and before any ad is requested
+            MobileAds.setRequestConfiguration(new RequestConfiguration.Builder()
+                    .setTagForChildDirectedTreatment(RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE)
+                    .setTagForUnderAgeOfConsent(RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_TRUE)
+                    .setMaxAdContentRating(RequestConfiguration.MAX_AD_CONTENT_RATING_G)
+                    .build());
             MobileAds.initialize(mActivity.getApplicationContext());
+        }
 
         mAdView = new AdView(mActivity);
         mAdView.setAdUnitId(BuildConfig.ADMOB_BANNER_UNIT_ID);

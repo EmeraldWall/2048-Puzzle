@@ -1,54 +1,72 @@
 # 2048 Puzzle
 
-![Menu](docs/screenshots/menu.png) ![Daily Challenge](docs/screenshots/daily_game.png)
+A colourful 2048 game for Android with a permanent ad banner that players remove with a one-time purchase.
+Written in C# with .NET MAUI, so it opens, builds and runs from Visual Studio.
 
-_Screens rendered from the real layouts and board code._
+![Logo](docs/screenshots/logo.png)
 
-Android 2048 game with a permanent bottom ad banner that players remove with a one-time in-app purchase.
+![All tile colours](docs/screenshots/board_all_tiles.png) ![Combo banner](docs/screenshots/board_combo_banner.png)
 
-- Boards: 4x4, 5x5, 6x6, undo, tile removal, endless mode, custom background color
-- Daily Challenge: one shared puzzle per UTC day (same tile sequence and goal for everyone), unlimited retries, best score of the day, daily streak, shareable result
-- Time Attack: 60 seconds, every merge adds time, beat your best score
-- Sprint: reach 512 as fast as you can, tracks your best time
-- Progression: player level from all points scored, bonus points for daily goals, optional evening reminder (only sent if you have not played that day)
-- Combos: merge on consecutive moves to build a streak; the score bonus grows from +50% up to +200% of the move's points, with a pop-up banner
-- Milestones: banner and stronger haptic feedback when you create a 256+ tile (512+ for the strong buzz)
-- Ads: Google AdMob adaptive banner (bottom of the menu and game screens). Every request is tagged child-directed with a G content rating, so ads are non-personalized and there is no consent form
-- Monetization: one-time "Remove ads" product through Google Play Billing, with "Restore purchase" in Settings
-- Language: English only
+_These images are drawn by the game's own board renderer (`tools/Puzzle2048.Preview`)._
+
+## What is in the game
+
+- **Classic** on 4x4, 5x5 and 6x6 boards with undo, a tile-removal power-up and a saved game
+- **Daily Challenge**: one puzzle per UTC day, the same tile sequence and goal for everyone, unlimited retries, best score of the day, a daily streak and a shareable result
+- **Time Attack**: 60 seconds, every merge adds time
+- **Sprint**: reach 512 as fast as you can
+- **Combos**: merge on consecutive moves for up to +200% bonus points
+- **Levels**: every point you score fills a level bar; completing a daily goal adds bonus points
+- **Daily reminder**: optional, one evening notification, only if the daily challenge has not been played yet
+- **Ads and purchase**: Google AdMob banner at the bottom of every screen, removed by a one-time Google Play purchase (`remove_ads`)
+- English only, portrait, Android 7.0 (API 24) and newer, 64-bit devices
+
+## Build it with Visual Studio
+
+You need **Visual Studio 2026** (version 18 or newer). The project targets .NET 10, which Microsoft supports only from Visual Studio 2026.
+
+1. In the Visual Studio Installer, install the **.NET Multi-platform App UI development** workload. Make sure the Android SDK and Java options of that workload are ticked.
+2. Open `Puzzle2048.sln`.
+3. Set **Puzzle2048.App** as the startup project, pick **Android Emulator** or your USB-connected phone, and press **Run**. Debug builds always show Google's test ads.
+
+### Make an APK or a Play Store bundle
+
+- **Release APK** (install it directly or share it): right-click **Puzzle2048.App**, choose **Publish** or **Archive** (the name depends on your Visual Studio version), then **Distribute** and choose the ad hoc option. Create a keystore when asked.
+- **Google Play bundle (.aab)**: same steps, choose the Google Play option. Release builds make a bundle by default.
+- **From a command line**:
+
+```
+dotnet publish src/Puzzle2048.App -f net10.0-android -c Release -p:UseApk=true ^
+  -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=my.keystore -p:AndroidSigningKeyAlias=mykey ^
+  -p:AndroidSigningKeyPass=env:KEY_PASS -p:AndroidSigningStorePass=env:STORE_PASS
+```
+
+Leave out `-p:UseApk=true` to get the `.aab`. Keep the keystore file and its passwords safe and backed up. Without them you can never publish an update. Never commit them.
 
 ## Before you publish
 
-1. **AdMob**: the release block of `app/build.gradle` holds the live App ID and banner unit ID. Debug builds always use Google's test IDs, so tap ads only there. After publishing, link the app to its Play listing in AdMob. In Play Console, choose the target audience that matches the child-directed ad settings in the code.
-2. **Play Console**: create a one-time in-app product with ID `remove_ads` (or change `REMOVE_ADS_PRODUCT_ID` in `app/build.gradle`). Billing only works from a build uploaded to a Play Console test track, installed from Google Play.
-3. **Identity**: change `applicationId` / `namespace` if `com.emeraldwall.puzzle2048` is not the ID you want, and set `support_email` in `app/src/main/res/values/strings.xml`.
-4. Publish a privacy policy that mentions AdMob and complete the Play Console Data safety and Ads declarations.
+1. **Support email**: set `SupportEmail` in `src/Puzzle2048.App/Services/AppConstants.cs`.
+2. **Version**: raise `ApplicationVersion` in `Puzzle2048.App.csproj` for every upload to Google Play.
+3. **AdMob**: the release build uses the live ids in `AppConstants.cs` (`AdConfig`). After the app is live, link it to its Play listing in AdMob. Do not tap live ads yourself.
+4. **Play Console**: create a one-time in-app product with id `remove_ads`. Purchases only work in a build installed from Google Play, for example from an internal test track.
+5. **Children**: every ad request is tagged child-directed with a G rating, so ads are non-personalized and there is no consent form. Make the target audience, ads and advertising ID answers in Play Console match. The Google ads library adds the `AD_ID` permission to the manifest, so review that answer carefully.
+6. **Privacy policy**: publish one that mentions AdMob and the purchase.
 
-## Build
+## Project layout
 
-Requires JDK 17 and the Android SDK.
+| Folder | What it holds |
+| --- | --- |
+| `src/Puzzle2048.Core` | Game rules, modes, scoring, daily challenge, progress. No UI, fully tested |
+| `src/Puzzle2048.Rendering` | Draws the board and animates moves. Uses vector text, so it looks the same on every phone |
+| `src/Puzzle2048.App` | The Android app: screens, ads, billing, reminders |
+| `tests` | Unit tests for the rules, progress and rendering helpers |
+| `tools/Puzzle2048.Preview` | Draws boards to PNG files, to check the look without a phone |
+| `tools/generate_glyphs.py` | Rebuilds the vector font data from the Fredoka font |
 
-```
-./gradlew assembleDebug
-```
+Run the tests with `dotnet test tests/Puzzle2048.Tests` or from Test Explorer.
 
-## License and credits
+## Licenses and credits
 
-MIT, see [LICENSE](LICENSE). This game derives from the open source 2048 code by Gabriele Cirulli and the Android ports built on it, all MIT licensed. Keep the license notices when you distribute the app.
-
-## Launcher icon
-
-The adaptive icon (with themed-icon layer) and legacy fallbacks live in `app/src/main/res/mipmap-*`. `store/play_store_icon_512.png` is the 512px version for the Play Console listing.
-
-## Modes and retention notes
-
-- Daily puzzles come from `modes/DailyChallenge.java` (goal list and seed). Add goals to the `GOALS` array to change the rotation; a new daily goal should stay achievable within a few minutes of play.
-- Progress (level, streak, records, reminder choice) is local on the device in `modes/ProgressStore.java`. There are no accounts or leaderboards; add a backend later if you want global rankings.
-- Undo, tile removal and board snapshots are Classic only, so Daily, Time Attack and Sprint results stay comparable.
-- Run `./gradlew testDebugUnitTest` for the unit tests of the daily seed, goals, streak and level maths.
-
-## Look and feel
-
-- Candy colour palette for the tiles, board, buttons and dialogs: edit `app/src/main/res/values/colors.xml` and the `cell_rectangle_*`, `btn_*` drawables. The game background color is `colorBackground`.
-- Chunky 3D-style buttons and tiles are layer-list drawables, so they scale to any screen without extra image files.
-- Font: Fredoka Bold by the Fredoka Project Authors, SIL Open Font License 1.1 (`app/src/main/assets/Fredoka-OFL.txt`). Keep that license file with the app.
+- Font: Fredoka Bold by the Fredoka Project Authors, SIL Open Font License 1.1 (`src/Puzzle2048.App/Resources/Raw/Fredoka-OFL.txt`, shown in the app under About). Keep that file with the app.
+- Libraries: .NET MAUI, Google Mobile Ads (AdMob) and Plugin.InAppBilling, under their own licenses.
+- See [LICENSE](LICENSE) for this repository.

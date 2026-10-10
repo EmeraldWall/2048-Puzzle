@@ -50,13 +50,12 @@ keytool -genkeypair -v -keystore puzzle2048.keystore -alias puzzle -keyalg RSA -
 
 $env:KEY_PASS = "your-password"
 $env:STORE_PASS = "your-password"
-$sign = "-p:AndroidKeyStore=true -p:AndroidSigningKeyStore=puzzle2048.keystore -p:AndroidSigningKeyAlias=puzzle -p:AndroidSigningKeyPass=env:KEY_PASS -p:AndroidSigningStorePass=env:STORE_PASS"
 
 # APK for your own phone
-dotnet publish src/Puzzle2048.App -f net10.0-android -c Release -p:UseApk=true $sign.Split(" ")
+dotnet publish src/Puzzle2048.App -f net10.0-android -c Release -p:UseApk=true -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=puzzle2048.keystore -p:AndroidSigningKeyAlias=puzzle -p:AndroidSigningKeyPass=env:KEY_PASS -p:AndroidSigningStorePass=env:STORE_PASS
 
 # AAB for Google Play
-dotnet publish src/Puzzle2048.App -f net10.0-android -c Release $sign.Split(" ")
+dotnet publish src/Puzzle2048.App -f net10.0-android -c Release -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=puzzle2048.keystore -p:AndroidSigningKeyAlias=puzzle -p:AndroidSigningKeyPass=env:KEY_PASS -p:AndroidSigningStorePass=env:STORE_PASS
 ```
 
 The files appear in `src\Puzzle2048.App\bin\Release\net10.0-android\publish\`:

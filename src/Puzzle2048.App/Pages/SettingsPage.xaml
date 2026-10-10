@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:c="clr-namespace:Puzzle2048.App.Controls"
+             x:Class="Puzzle2048.App.Pages.SettingsPage"
+             NavigationPage.HasNavigationBar="False">
+
+    <ContentPage.Background>
+        <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+            <GradientStop Color="#6FD0FF" Offset="0.0" />
+            <GradientStop Color="#8FA8FF" Offset="0.5" />
+            <GradientStop Color="#C48BFF" Offset="1.0" />
+        </LinearGradientBrush>
+    </ContentPage.Background>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="18,16,18,24" Spacing="14">
+
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <c:CandyButton WidthRequest="48" HeightRequest="52" CornerRadius="24" LipHeight="4"
+                               FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" Clicked="OnBackClicked">
+                    <Image Source="ic_back.png" WidthRequest="26" HeightRequest="26" />
+                </c:CandyButton>
+                <Label Grid.Column="1" Text="Settings" VerticalOptions="Center"
+                       FontFamily="FredokaBold" FontSize="32" TextColor="White" />
+            </Grid>
+
+            <!-- Background colour -->
+            <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="22" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Game background" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
+                    <FlexLayout x:Name="Swatches" Wrap="Wrap" JustifyContent="Start" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Reminder -->
+            <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16,12">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="22" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Daily reminder" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
+                        <Label Text="One evening notification, only if you have not played today" FontFamily="FredokaBold" FontSize="13" TextColor="White" />
+                    </VerticalStackLayout>
+                    <Switch x:Name="ReminderSwitch" Grid.Column="1" VerticalOptions="Center" OnColor="#FF4F9A" Toggled="OnReminderToggled" />
+                </Grid>
+            </Border>
+
+            <!-- Purchase -->
+            <c:CandyButton x:Name="RemoveAdsButton" HeightRequest="62" CornerRadius="22" LipHeight="7" FontSize="20"
+                           Text="Remove ads" TextColor="#7A4A00"
+                           FaceTop="#FFEE7A" FaceBottom="#FFCF2E" LipColor="#D49A00" Clicked="OnRemoveAdsClicked" />
+            <c:CandyButton HeightRequest="58" CornerRadius="22" LipHeight="7" FontSize="19" Text="Restore purchase"
+                           FaceTop="#7FCBFF" FaceBottom="#3E9CFF" LipColor="#1F6FCC" Clicked="OnRestoreClicked" />
+
+            <!-- About -->
+            <c:CandyButton HeightRequest="58" CornerRadius="22" LipHeight="7" FontSize="19" Text="About and licenses"
+                           FaceTop="#BE94FF" FaceBottom="#8F5CF2" LipColor="#6034C2" Clicked="OnAboutClicked" />
+            <Label x:Name="VersionLabel" HorizontalOptions="Center" FontFamily="FredokaBold" FontSize="14" TextColor="White" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

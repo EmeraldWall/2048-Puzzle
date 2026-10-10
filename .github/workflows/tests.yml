@@ -1,0 +1,16 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      # Game rules, scoring, modes, progress and the vector text. The Android app itself is built on a developer PC.
+      - run: dotnet test tests/Puzzle2048.Tests --configuration Release

@@ -1,21 +1,36 @@
-MIT License
+Copyright (c) 2026 EmeraldWall. All rights reserved.
 
-Copyright (c) 2019 GamEditors
+PROPRIETARY SOFTWARE
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software, including its source code, game design, artwork, sounds, text and
+other files in this repository (the "Software"), is the property of EmeraldWall.
+No license is granted to anyone except as stated in a separate written agreement
+signed by EmeraldWall.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Without prior written permission from EmeraldWall you may not:
+
+  - copy, modify, merge, publish, distribute, sublicense or sell the Software or
+    any part of it;
+  - use the Software, its name, or its artwork to create or publish another app
+    or product;
+  - reverse engineer the published app except where the law allows it despite
+    this restriction.
+
+The published Android app is licensed to players, not sold, under the terms shown
+in its store listing.
+
+Third-party components
+----------------------
+The Software uses third-party components that remain under their own licenses:
+
+  - Fredoka Bold font, Copyright 2016 The Fredoka Project Authors, SIL Open Font
+    License 1.1. The license text is in
+    src/Puzzle2048.App/Resources/Raw/Fredoka-OFL.txt and must stay with the font.
+  - .NET and .NET MAUI (Microsoft), Google Mobile Ads, and Plugin.InAppBilling,
+    each under its own license terms.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE
 SOFTWARE.

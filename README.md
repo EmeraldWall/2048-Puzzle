@@ -69,4 +69,4 @@ Run the tests with `dotnet test tests/Puzzle2048.Tests` or from Test Explorer.
 
 - Font: Fredoka Bold by the Fredoka Project Authors, SIL Open Font License 1.1 (`src/Puzzle2048.App/Resources/Raw/Fredoka-OFL.txt`, shown in the app under About). Keep that file with the app.
 - Libraries: .NET MAUI, Google Mobile Ads (AdMob) and Plugin.InAppBilling, under their own licenses.
-- See [LICENSE](LICENSE) for this repository.
+- This is proprietary, closed-source software. All rights reserved, see [LICENSE](LICENSE). Keep this repository private.

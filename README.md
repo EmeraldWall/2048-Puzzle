@@ -31,17 +31,42 @@ You need **Visual Studio 2026** (version 18 or newer). The project targets .NET 
 
 ### Make an APK or a Play Store bundle
 
-- **Release APK** (install it directly or share it): right-click **Puzzle2048.App**, choose **Publish** or **Archive** (the name depends on your Visual Studio version), then **Distribute** and choose the ad hoc option. Create a keystore when asked.
-- **Google Play bundle (.aab)**: same steps, choose the Google Play option. Release builds make a bundle by default.
-- **From a command line**:
+Two different files, for two different jobs:
 
-```
-dotnet publish src/Puzzle2048.App -f net10.0-android -c Release -p:UseApk=true ^
-  -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=my.keystore -p:AndroidSigningKeyAlias=mykey ^
-  -p:AndroidSigningKeyPass=env:KEY_PASS -p:AndroidSigningStorePass=env:STORE_PASS
+| File | For | How |
+| --- | --- | --- |
+| **APK** (`.apk`) | Installing on your own phone, or sharing | Release build with `-p:UseApk=true` |
+| **AAB** (`.aab`) | Uploading to Google Play | Release build (the default) |
+
+**Pick the file whose name ends in `-Signed`.** Each build also leaves an unsigned copy next to it, and a phone or Google Play will not accept that one.
+
+**In Visual Studio:** right-click **Puzzle2048.App**, choose **Publish** or **Archive** (the name depends on your version), then **Distribute**. Choose the ad hoc option for an APK or the Google Play option for an AAB. The wizard can create your signing key.
+
+**From a command line (Windows PowerShell):**
+
+```powershell
+# Once: create your signing key. Use the SAME password for the store and the key.
+keytool -genkeypair -v -keystore puzzle2048.keystore -alias puzzle -keyalg RSA -keysize 2048 -validity 10000
+
+$env:KEY_PASS = "your-password"
+$env:STORE_PASS = "your-password"
+$sign = "-p:AndroidKeyStore=true -p:AndroidSigningKeyStore=puzzle2048.keystore -p:AndroidSigningKeyAlias=puzzle -p:AndroidSigningKeyPass=env:KEY_PASS -p:AndroidSigningStorePass=env:STORE_PASS"
+
+# APK for your own phone
+dotnet publish src/Puzzle2048.App -f net10.0-android -c Release -p:UseApk=true $sign.Split(" ")
+
+# AAB for Google Play
+dotnet publish src/Puzzle2048.App -f net10.0-android -c Release $sign.Split(" ")
 ```
 
-Leave out `-p:UseApk=true` to get the `.aab`. Keep the keystore file and its passwords safe and backed up. Without them you can never publish an update. Never commit them.
+The files appear in `src\Puzzle2048.App\bin\Release\net10.0-android\publish\`:
+`com.emeraldwall.puzzle2048-Signed.apk` and `com.emeraldwall.puzzle2048-Signed.aab`.
+
+- **Only for your own phone**, you can leave out every signing option. The `-Signed.apk` is then signed with a debug key, which is fine to install but never to publish.
+- **Google Play** needs a bundle signed with your own key (Play App Signing keeps your key as the "upload key"). Raise `ApplicationVersion` for every upload.
+- If the build stops with a `jarsigner` error, the store password and key password probably differ. Use the same password for both.
+- **Keep `puzzle2048.keystore` and its passwords safe and backed up.** Without them you cannot publish updates. Never commit them (`.gitignore` already skips `*.keystore`).
+- Install the APK by copying it to the phone and opening it (allow "install unknown apps"), or with `adb install`. The remove-ads purchase only works in a build installed from Google Play, so test that on an internal testing track.
 
 ## Before you publish
 

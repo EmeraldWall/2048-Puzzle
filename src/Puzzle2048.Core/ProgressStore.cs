@@ -19,6 +19,9 @@ public sealed class ProgressStore
     private const string ReminderPromptedKey = "reminder_prompted";
     private const string AdsRemovedKey = "ads_removed";
     private const string BackgroundKey = "background_color";
+    private const string SoundKey = "sound_enabled";
+    private const string DailyStarsDayKey = "daily_stars_day";
+    private const string DailyStarsKey = "daily_stars";
 
     /// <summary>A daily run counts toward the streak after this many moves.</summary>
     public const int StreakMinMoves = 10;
@@ -99,6 +102,20 @@ public sealed class ProgressStore
         }
     }
 
+    /// <summary>Best star rating earned today (0 to 3).</summary>
+    public int DailyStars(int day) =>
+        _storage.GetInt(DailyStarsDayKey, -1) == day ? _storage.GetInt(DailyStarsKey, 0) : 0;
+
+    /// <summary>Keeps the best star rating of the day. Returns true when this run improved it.</summary>
+    public bool RecordDailyStars(int day, int stars)
+    {
+        if (stars <= DailyStars(day))
+            return false;
+        _storage.SetInt(DailyStarsDayKey, day);
+        _storage.SetInt(DailyStarsKey, Math.Clamp(stars, 0, 3));
+        return true;
+    }
+
     /// <summary>The streak after playing on <paramref name="day"/>: it continues from yesterday, otherwise restarts.</summary>
     public static int NextStreak(int lastPlayedDay, int day, int currentStreak) =>
         lastPlayedDay == day - 1 ? currentStreak + 1 : 1;
@@ -152,6 +169,12 @@ public sealed class ProgressStore
     {
         get => _storage.GetBool(AdsRemovedKey, false);
         set => _storage.SetBool(AdsRemovedKey, value);
+    }
+
+    public bool SoundEnabled
+    {
+        get => _storage.GetBool(SoundKey, true);
+        set => _storage.SetBool(SoundKey, value);
     }
 
     public string BackgroundColor

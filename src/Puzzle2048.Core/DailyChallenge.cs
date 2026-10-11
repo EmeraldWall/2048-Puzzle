@@ -29,6 +29,32 @@ public sealed record DailyGoal(int Size, GoalType Type, int Target, int MoveLimi
     /// <summary>True once the goal can no longer be reached in this run.</summary>
     public bool IsLost(int moves) => Type == GoalType.TileInMoves && moves > MoveLimit;
 
+    /// <summary>Score that earns the third star once the goal is met.</summary>
+    public int ThreeStarScore => Type switch
+    {
+        GoalType.Tile => Target * 6,
+        GoalType.Score => Target * 3 / 2,
+        _ => Target * 4,
+    };
+
+    /// <summary>
+    /// Stars for a daily run, Candy-style: one for playing properly, two for the goal, three for the goal
+    /// with a high score.
+    /// </summary>
+    public int Stars(bool goalMet, long score, int moves)
+    {
+        if (goalMet)
+            return score >= ThreeStarScore ? 3 : 2;
+        return moves >= ProgressStore.StreakMinMoves ? 1 : 0;
+    }
+
+    /// <summary>0 to 1 progress toward the goal, for a progress bar.</summary>
+    public double Fraction(int bestTile, long score, int moves) => Type switch
+    {
+        GoalType.Score => Math.Clamp(score / (double)Target, 0, 1),
+        _ => bestTile <= 0 ? 0 : Math.Clamp(Math.Log2(bestTile) / Math.Log2(Target), 0, 1),
+    };
+
     public string Progress(int bestTile, long score, int moves) => Type switch
     {
         GoalType.Tile => $"best tile {bestTile}",

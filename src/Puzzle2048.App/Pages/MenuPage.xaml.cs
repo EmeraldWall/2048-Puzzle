@@ -1,5 +1,6 @@
 using Puzzle2048.App.Services;
 using Puzzle2048.Core;
+using Puzzle2048.Rendering;
 
 namespace Puzzle2048.App.Pages;
 
@@ -9,10 +10,14 @@ public partial class MenuPage : ContentPage
     private bool _servicesStarted;
     private double _levelFraction;
 
+    private readonly Backdrop _backdrop = new() { BaseColor = Color.FromArgb("#7FD3FF") };
+    private IDispatcherTimer? _timer;
+
     public MenuPage()
     {
         InitializeComponent();
         LevelTrack.SizeChanged += (_, _) => ApplyLevelFill();
+        BackdropView.Drawable = _backdrop;
     }
 
     protected override async void OnAppearing()
@@ -22,10 +27,17 @@ public partial class MenuPage : ContentPage
         AppServices.Billing.AdsRemovedChanged += RefreshStore;
         Refresh();
 
+        // The backdrop drifts gently at 20 frames a second while the menu is visible
+        _timer = Dispatcher.CreateTimer();
+        _timer.Interval = TimeSpan.FromMilliseconds(50);
+        _timer.Tick += (_, _) => BackdropView.Invalidate();
+        _timer.Start();
+
         if (!_servicesStarted)
         {
             _servicesStarted = true;
             AppServices.Reminders.RestoreIfEnabled();
+            _ = AppServices.Sound.PreloadAsync();
             await AppServices.Billing.InitializeAsync();
         }
 
@@ -36,6 +48,8 @@ public partial class MenuPage : ContentPage
     {
         base.OnDisappearing();
         AppServices.Billing.AdsRemovedChanged -= RefreshStore;
+        _timer?.Stop();
+        _timer = null;
     }
 
     // ------------------------------------------------------------------ what the screen shows
@@ -63,6 +77,8 @@ public partial class MenuPage : ContentPage
             ? (_progress.IsGoalMet(today) ? "Goal complete. " : "Goal not reached yet. ") + $"Best today: {_progress.DailyBestScore(today):N0}"
             : (streak > 0 ? "Play today to keep your streak" : "Play today to start a streak");
         DailyStreak.Text = streak > 0 ? $"Streak: {streak} {(streak == 1 ? "day" : "days")}" : "No streak yet";
+        int stars = _progress.DailyStars(today);
+        DailyStars.Text = new string('\u2605', stars) + new string('\u2606', 3 - stars);
 
         // Records
         long taBest = _progress.HighScore(GameMode.TimeAttack, 4);
@@ -116,8 +132,8 @@ public partial class MenuPage : ContentPage
     {
         if (await AppServices.Billing.BuyAsync())
             await DisplayAlertAsync("Thank you!", "Ads have been removed.", "OK");
-        else if (!_progress.AdsRemoved)
-            await DisplayAlertAsync("Google Play", "The purchase did not go through. Please try again in a moment.", "OK");
+        else if (AppServices.Billing.PurchasePending)
+            await DisplayAlertAsync("Almost there", "Your payment is pending. Ads will be removed as soon as Google Play confirms it.", "OK");
     }
 
     private async void OnSettingsClicked(object? sender, EventArgs e) => await Navigation.PushAsync(new SettingsPage());

@@ -97,6 +97,7 @@ public class CandyButton : ContentView
             return;
 
         _pressing = true;
+        Services.AppServices.Sound.Play(Services.Sfx.Tap);
         try
         {
             await _face.TranslateToAsync(0, LipHeight - 1, 50);

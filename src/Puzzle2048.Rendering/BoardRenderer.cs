@@ -1,252 +1,229 @@
 using Microsoft.Maui.Graphics;
 using Puzzle2048.Core;
+using static Puzzle2048.Rendering.Painter;
 
 namespace Puzzle2048.Rendering;
 
 /// <summary>
-/// Draws the board, its tiles and the pop-up banner, and animates slides, merges and new tiles.
+/// Draws the board and its tiles and animates slides, merges, new tiles and the opening reveal.
 /// It has no dependency on the screen, so the same code runs in the app and in the preview tool.
 /// </summary>
 public sealed class BoardRenderer : IDrawable
 {
-    public const long SlideMilliseconds = 110;
-    public const long PopMilliseconds = 160;
-    public const long BannerMilliseconds = 1300;
-    public const long RevealMilliseconds = 260;
+    public const long SlideMilliseconds = 115;
+    public const long PopMilliseconds = 180;
+    public const long RevealMilliseconds = 420;
 
     private MoveResult? _move;
-    private long _moveStart;
-    private string? _banner;
-    private long _bannerStart;
+    private long _moveStart = -1_000_000;
     private long _revealStart = -1_000_000;
 
-    /// <summary>The game to draw. Set it again after starting a new game or loading a saved one.</summary>
+    /// <summary>The game to draw.</summary>
     public GameSession? Session { get; set; }
 
-    /// <summary>Milliseconds clock. Tests and the preview tool replace it to freeze time.</summary>
+    /// <summary>Milliseconds clock. The preview tool replaces it to freeze time.</summary>
     public Func<long> Clock { get; set; } = () => Environment.TickCount64;
 
-    /// <summary>True while something is moving, so the screen should keep redrawing.</summary>
+    /// <summary>The move currently animating, if any.</summary>
+    public MoveResult? CurrentMove => _move;
+
+    /// <summary>True while tiles are still moving, popping or revealing.</summary>
     public bool IsAnimating
     {
         get
         {
             long now = Clock();
             return (_move is not null && now - _moveStart < SlideMilliseconds + PopMilliseconds)
-                || (_banner is not null && now - _bannerStart < BannerMilliseconds)
-                || now - _revealStart < RevealMilliseconds;
+                || now - _revealStart < RevealMilliseconds + 300;
         }
     }
 
-    /// <summary>Starts the slide, merge and spawn animation for a move that was just played.</summary>
     public void BeginMove(MoveResult result)
     {
         _move = result;
         _moveStart = Clock();
-        if (result.Banner is not null)
-        {
-            _banner = result.Banner;
-            _bannerStart = _moveStart;
-        }
     }
 
-    /// <summary>Pops all tiles in, for a new game or a loaded one.</summary>
+    /// <summary>Pops all tiles in one after another, for a new or loaded game.</summary>
     public void BeginReveal()
     {
         _move = null;
-        _banner = null;
         _revealStart = Clock();
     }
 
-    public void ShowBanner(string text)
-    {
-        _banner = text;
-        _bannerStart = Clock();
-    }
-
+    /// <summary>Draws the board as large as fits, at the top of the area.</summary>
     public void Draw(ICanvas canvas, RectF dirtyRect)
     {
-        int size = Session?.Size ?? 4;
         float side = Math.Min(dirtyRect.Width, dirtyRect.Height);
-        float left = dirtyRect.X + (dirtyRect.Width - side) / 2f;
-        float top = dirtyRect.Y;
-        BoardGeometry g = new(left, top, side, size);
+        DrawBoard(canvas, new RectF(dirtyRect.X + (dirtyRect.Width - side) / 2f, dirtyRect.Y, side, side));
+    }
 
-        DrawBoardPlate(canvas, g);
+    /// <summary>Centre of a cell (fractional cells allowed) inside a board square.</summary>
+    public static PointF CellCenter(RectF square, int size, float x, float y)
+    {
+        var g = new Geometry(square, size);
+        return g.CellRect(x, y).Center;
+    }
+
+    /// <summary>Size of one cell in pixels for a board square.</summary>
+    public static float CellSize(RectF square, int size) => new Geometry(square, size).Cell;
+
+    public void DrawBoard(ICanvas canvas, RectF square)
+    {
+        int size = Session?.Size ?? 4;
+        var g = new Geometry(square, size);
+
+        DrawPlate(canvas, g);
         for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
-                FillRounded(canvas, g.CellRect(x, y), g.CellRadius, Palette.EmptyCell);
+                DrawEmptyCell(canvas, g.CellRect(x, y), g.CellRadius);
 
         if (Session is not null)
             DrawTiles(canvas, g, Session);
 
         DrawEndTint(canvas, g);
-        DrawBanner(canvas, g);
     }
 
-    private void DrawTiles(ICanvas canvas, BoardGeometry g, GameSession session)
+    private void DrawTiles(ICanvas canvas, Geometry g, GameSession session)
     {
         long now = Clock();
         long sinceMove = now - _moveStart;
-        float reveal = Clamp01((now - _revealStart) / (float)RevealMilliseconds);
 
         if (_move is not null && sinceMove < SlideMilliseconds)
         {
-            // Phase 1: every tile that was on the board slides toward its new place
+            // Every tile that was on the board slides toward its new place; merging pairs overlap
             float t = EaseOutCubic(sinceMove / (float)SlideMilliseconds);
-            foreach (TileSlide slide in _move.Outcome.Slides)
-            {
-                float x = Lerp(slide.FromX, slide.ToX, t);
-                float y = Lerp(slide.FromY, slide.ToY, t);
-                DrawTile(canvas, g, x, y, slide.Value, 1f);
-            }
+            foreach (TileSlide slide in _move.Outcome.Slides.OrderBy(s => s.MergedIntoId is null ? 1 : 0))
+                DrawTile(canvas, g, Lerp(slide.FromX, slide.ToX, t), Lerp(slide.FromY, slide.ToY, t), slide.Value, 1f, now);
             return;
         }
 
-        // Phase 2: the finished board; new and merged tiles pop
         float pop = _move is null ? 1f : Clamp01((sinceMove - SlideMilliseconds) / (float)PopMilliseconds);
+        int index = 0;
         foreach (Tile tile in session.Board.Tiles)
         {
             float scale = 1f;
-            if (_move is not null)
+            if (_move is not null && pop < 1f)
             {
                 if (_move.Spawned is { } spawned && spawned.Id == tile.Id)
                     scale = EaseOutBack(pop);
                 else if (_move.Outcome.Merged.Any(m => m.Id == tile.Id))
-                    scale = 1f + 0.18f * MathF.Sin(MathF.PI * pop);
+                    scale = 1f + 0.2f * MathF.Sin(MathF.PI * pop);
             }
+
+            // Opening reveal: tiles pop in one after another
+            long revealAt = _revealStart + index * 45L;
+            float reveal = Clamp01((now - revealAt) / (float)RevealMilliseconds);
             if (reveal < 1f)
                 scale *= EaseOutBack(reveal);
 
-            DrawTile(canvas, g, tile.X, tile.Y, tile.Value, scale);
+            DrawTile(canvas, g, tile.X, tile.Y, tile.Value, scale, now);
+            index++;
         }
     }
 
-    private static void DrawTile(ICanvas canvas, BoardGeometry g, float cellX, float cellY, int value, float scale)
+    private static void DrawTile(ICanvas canvas, Geometry g, float cellX, float cellY, int value, float scale, long now)
     {
-        if (scale <= 0.01f)
+        if (scale <= 0.02f)
             return;
 
-        RectF rect = g.CellRect(cellX, cellY);
-        float cx = rect.Center.X;
-        float cy = rect.Center.Y;
-        float w = rect.Width * scale;
-        float h = rect.Height * scale;
-        var scaled = new RectF(cx - w / 2f, cy - h / 2f, w, h);
-
+        RectF cell = g.CellRect(cellX, cellY);
+        float w = cell.Width * scale;
+        var rect = new RectF(cell.Center.X - w / 2f, cell.Center.Y - w / 2f, w, w);
         TileStyle style = Palette.ForValue(value);
         float radius = g.CellRadius * scale;
-        float lip = scaled.Height * 0.07f;
 
-        // Lip first, then the gradient face above it
-        FillRounded(canvas, new RectF(scaled.X, scaled.Y + lip, scaled.Width, scaled.Height - lip), radius, style.Edge);
-        var face = new RectF(scaled.X, scaled.Y, scaled.Width, scaled.Height - lip);
-        FillGradient(canvas, face, radius, style.Light, style.Main);
+        // Big tiles glow, and the very biggest pulse
+        if (value >= 128)
+        {
+            float strength = value >= 2048 ? 1f : value >= 1024 ? 0.8f : value >= 512 ? 0.6f : 0.4f;
+            float pulse = value >= 1024 ? 0.75f + 0.25f * MathF.Sin(now * 0.005f) : 1f;
+            for (int ring = 3; ring >= 1; ring--)
+            {
+                float grow = w * 0.045f * ring;
+                FillRounded(canvas, rect.Inflate(grow, grow), radius + grow, style.Light.WithAlpha(0.13f * strength * pulse));
+            }
+        }
 
-        // Soft gloss on the top edge
-        var gloss = new RectF(face.X + face.Width * 0.1f, face.Y + face.Height * 0.07f, face.Width * 0.8f, face.Height * 0.2f);
-        FillRounded(canvas, gloss, gloss.Height / 2f, Colors.White.WithAlpha(0.22f));
+        RectF face = CandyPanel(canvas, rect, radius, style.Light, style.Main, style.Edge, lipRatio: 0.075f);
 
-        // Number: shrinks as it gets longer so it always fits
         string text = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        float fontSize = face.Height * text.Length switch { 1 => 0.46f, 2 => 0.44f, 3 => 0.36f, 4 => 0.29f, _ => 0.24f };
-        Color shadow = style.Text == Palette.White ? Colors.Black.WithAlpha(0.28f) : Colors.White.WithAlpha(0.35f);
-        GlyphFont.DrawCenteredWithShadow(canvas, text, face.Center.X, face.Center.Y, fontSize, style.Text, shadow);
+        float fontSize = face.Height * text.Length switch { 1 => 0.47f, 2 => 0.44f, 3 => 0.36f, 4 => 0.29f, _ => 0.24f };
+        if (style.Text == Palette.White)
+        {
+            GlyphFont.DrawStyled(canvas, text, face.Center.X, face.Center.Y, fontSize,
+                Colors.White, Color.FromArgb("#FFF4E0"), Darken(style.Edge, 0.35f), fontSize * 0.09f, Colors.Black.WithAlpha(0.22f));
+        }
+        else
+        {
+            GlyphFont.DrawStyled(canvas, text, face.Center.X, face.Center.Y, fontSize,
+                Palette.Navy, Palette.Navy, null, 0, Colors.White.WithAlpha(0.55f));
+        }
+
+        // 2048 and up: twinkling sparkles
+        if (value >= 2048)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                float phase = now * 0.004f + i * 2.1f;
+                float a = MathF.Max(0f, MathF.Sin(phase));
+                float sx = face.X + face.Width * (0.18f + 0.32f * i);
+                float sy = face.Y + face.Height * (i == 1 ? 0.82f : 0.2f);
+                Sparkle(canvas, sx, sy, face.Width * 0.09f * (0.6f + 0.4f * a), Colors.White.WithAlpha(0.9f * a));
+            }
+        }
     }
 
-    private static void DrawBoardPlate(ICanvas canvas, BoardGeometry g)
+    private static void DrawEmptyCell(ICanvas canvas, RectF rect, float radius)
     {
-        float lip = g.Side * 0.012f;
-        FillRounded(canvas, new RectF(g.Left, g.Top + lip, g.Side, g.Side - lip), g.PlateRadius, Palette.BoardEdge);
-        FillGradient(canvas, new RectF(g.Left, g.Top, g.Side, g.Side - lip), g.PlateRadius, Palette.BoardLight, Palette.BoardMain);
+        // Slightly sunken: darker top edge, lighter bottom
+        FillRounded(canvas, rect, radius, Palette.EmptyCell);
+        float stroke = MathF.Max(1f, rect.Height * 0.03f);
+        canvas.StrokeColor = Colors.Black.WithAlpha(0.12f);
+        canvas.StrokeSize = stroke;
+        canvas.DrawRoundedRectangle(rect.Inflate(-stroke / 2f, -stroke / 2f), radius);
     }
 
-    private void DrawEndTint(ICanvas canvas, BoardGeometry g)
+    private static void DrawPlate(ICanvas canvas, Geometry g)
+    {
+        var rect = new RectF(g.Left, g.Top, g.Side, g.Side);
+        float lip = g.Side * 0.014f;
+
+        canvas.SaveState();
+        canvas.SetShadow(new SizeF(0, g.Side * 0.02f), g.Side * 0.05f, Colors.Black.WithAlpha(0.32f));
+        FillRounded(canvas, new RectF(rect.X, rect.Y + lip, rect.Width, rect.Height - lip), g.PlateRadius, Palette.BoardEdge);
+        canvas.RestoreState();
+
+        var face = new RectF(rect.X, rect.Y, rect.Width, rect.Height - lip);
+        FillGradient(canvas, face, g.PlateRadius, Palette.BoardLight, Palette.BoardMain);
+        float rim = MathF.Max(1.5f, g.Side * 0.006f);
+        canvas.StrokeColor = Colors.White.WithAlpha(0.18f);
+        canvas.StrokeSize = rim;
+        canvas.DrawRoundedRectangle(face.Inflate(-rim, -rim), g.PlateRadius);
+    }
+
+    private void DrawEndTint(ICanvas canvas, Geometry g)
     {
         if (Session is null || Session.State == RunState.Playing)
             return;
 
-        Color tint = Session.State == RunState.Lost ? Color.FromArgb("#E4DCFF").WithAlpha(0.55f) : Color.FromArgb("#FFE45C").WithAlpha(0.35f);
+        Color tint = Session.State == RunState.Lost ? Color.FromArgb("#2B2D6E").WithAlpha(0.35f) : Color.FromArgb("#FFE45C").WithAlpha(0.3f);
         FillRounded(canvas, new RectF(g.Left, g.Top, g.Side, g.Side), g.PlateRadius, tint);
     }
 
-    private void DrawBanner(ICanvas canvas, BoardGeometry g)
+    /// <summary>Where the plate and the cells sit inside the board square.</summary>
+    private readonly struct Geometry
     {
-        if (_banner is null)
-            return;
-
-        long elapsed = Clock() - _bannerStart;
-        if (elapsed >= BannerMilliseconds)
-            return;
-
-        // Pops in quickly, stays, then fades over the last 400 ms
-        float alpha = Clamp01((BannerMilliseconds - elapsed) / 400f);
-        float pop = EaseOutBack(Clamp01(elapsed / 160f));
-
-        float textSize = g.Side * 0.058f;
-        float maxWidth = g.Side * 0.86f;
-        float textWidth = GlyphFont.Measure(_banner, textSize);
-        if (textWidth > maxWidth - textSize * 1.6f)
+        public Geometry(RectF square, int size)
         {
-            textSize *= (maxWidth - textSize * 1.6f) / textWidth;
-            textWidth = GlyphFont.Measure(_banner, textSize);
-        }
-
-        float pillWidth = (textWidth + textSize * 1.6f) * pop;
-        float pillHeight = textSize * 2.1f * pop;
-        float cx = g.Left + g.Side / 2f;
-        float top = g.Top + g.Side * 0.03f;
-        var pill = new RectF(cx - pillWidth / 2f, top, pillWidth, pillHeight);
-
-        FillRounded(canvas, new RectF(pill.X, pill.Y + pillHeight * 0.12f, pill.Width, pill.Height), pillHeight / 2f, Colors.Black.WithAlpha(0.3f * alpha));
-        FillRounded(canvas, pill, pillHeight / 2f, Colors.White.WithAlpha(0.96f * alpha));
-        GlyphFont.DrawCentered(canvas, _banner, cx, pill.Center.Y, textSize * pop, Palette.Navy.WithAlpha(alpha));
-    }
-
-    private static void FillRounded(ICanvas canvas, RectF rect, float radius, Color color)
-    {
-        canvas.FillColor = color;
-        canvas.FillRoundedRectangle(rect, radius);
-    }
-
-    private static void FillGradient(ICanvas canvas, RectF rect, float radius, Color top, Color bottom)
-    {
-        var paint = new LinearGradientPaint(new[]
-        {
-            new PaintGradientStop(0f, top),
-            new PaintGradientStop(1f, bottom),
-        }, new Point(0.5, 0), new Point(0.5, 1));
-        canvas.SetFillPaint(paint, rect);
-        canvas.FillRoundedRectangle(rect, radius);
-    }
-
-    private static float Lerp(float a, float b, float t) => a + (b - a) * t;
-
-    private static float Clamp01(float v) => v < 0f ? 0f : v > 1f ? 1f : v;
-
-    private static float EaseOutCubic(float t) => 1f - MathF.Pow(1f - t, 3f);
-
-    private static float EaseOutBack(float t)
-    {
-        const float c1 = 1.70158f;
-        const float c3 = c1 + 1f;
-        return 1f + c3 * MathF.Pow(t - 1f, 3f) + c1 * MathF.Pow(t - 1f, 2f);
-    }
-
-    /// <summary>Where the plate and the cells sit inside the drawing area.</summary>
-    private readonly struct BoardGeometry
-    {
-        public BoardGeometry(float left, float top, float side, int size)
-        {
-            Left = left;
-            Top = top;
-            Side = side;
+            Left = square.X;
+            Top = square.Y;
+            Side = square.Width;
             Size = size;
-            // The gap is a fixed share of the cell so 4x4, 5x5 and 6x6 all look balanced
-            Gap = side * 0.028f;
-            Cell = (side - Gap * (size + 1)) / size;
-            PlateRadius = side * 0.045f;
-            CellRadius = Cell * 0.16f;
+            Gap = Side * 0.026f;
+            Cell = (Side - Gap * (size + 1)) / size;
+            PlateRadius = Side * 0.05f;
+            CellRadius = Cell * 0.2f;
         }
 
         public float Left { get; }

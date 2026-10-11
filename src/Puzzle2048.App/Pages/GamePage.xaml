@@ -3,99 +3,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:c="clr-namespace:Puzzle2048.App.Controls"
              x:Class="Puzzle2048.App.Pages.GamePage"
-             NavigationPage.HasNavigationBar="False">
+             NavigationPage.HasNavigationBar="False"
+             SafeAreaEdges="Container">
 
-    <Grid x:Name="Outer">
-        <Grid.GestureRecognizers>
-            <PanGestureRecognizer PanUpdated="OnPan" />
-        </Grid.GestureRecognizers>
+    <!-- The whole game screen is drawn by GameScene; only the ad is a separate view -->
+    <Grid RowDefinitions="*,Auto">
+        <GraphicsView x:Name="SceneView" SemanticProperties.Description="2048 game board. Swipe to move the tiles.">
+            <GraphicsView.GestureRecognizers>
+                <PanGestureRecognizer PanUpdated="OnPan" />
+                <TapGestureRecognizer Tapped="OnTapped" />
+            </GraphicsView.GestureRecognizers>
+        </GraphicsView>
 
-        <Grid x:Name="Root" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" Padding="12,10,12,0" RowSpacing="10">
-
-            <!-- Title and scores -->
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <Label VerticalOptions="Center" FontFamily="FredokaBold" FontSize="46">
-                    <Label.FormattedText>
-                        <FormattedString>
-                            <Span Text="2" TextColor="#FF8C3D" />
-                            <Span Text="0" TextColor="#FF4F9A" />
-                            <Span Text="4" TextColor="#8F5CF2" />
-                            <Span Text="8" TextColor="#3E9CFF" />
-                        </FormattedString>
-                    </Label.FormattedText>
-                </Label>
-
-                <c:CandyButton Grid.Column="1" Interactive="False" WidthRequest="108" HeightRequest="64"
-                               CornerRadius="14" LipHeight="4"
-                               FaceTop="#FFA45C" FaceBottom="#FF7A3D" LipColor="#D4541A">
-                    <VerticalStackLayout VerticalOptions="Center" Spacing="-2">
-                        <Label Text="SCORE" HorizontalOptions="Center" FontFamily="FredokaBold" FontSize="12" TextColor="#FFF3D6" />
-                        <Label x:Name="ScoreLabel" Text="0" HorizontalOptions="Center" FontFamily="FredokaBold" FontSize="24" TextColor="White" />
-                    </VerticalStackLayout>
-                </c:CandyButton>
-
-                <c:CandyButton Grid.Column="2" Interactive="False" WidthRequest="108" HeightRequest="64"
-                               CornerRadius="14" LipHeight="4"
-                               FaceTop="#B58CFF" FaceBottom="#8E5CF0" LipColor="#6535C4">
-                    <VerticalStackLayout VerticalOptions="Center" Spacing="-2">
-                        <Label Text="BEST" HorizontalOptions="Center" FontFamily="FredokaBold" FontSize="12" TextColor="#FFF3D6" />
-                        <Label x:Name="BestLabel" Text="0" HorizontalOptions="Center" FontFamily="FredokaBold" FontSize="24" TextColor="White" />
-                    </VerticalStackLayout>
-                </c:CandyButton>
-            </Grid>
-
-            <!-- Mode name or clock, and the round buttons -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
-                <Label x:Name="ModeLabel" VerticalOptions="Center" FontFamily="FredokaBold" FontSize="22" TextColor="#2B2D6E" />
-
-                <c:CandyButton x:Name="BackButton" Grid.Column="1" WidthRequest="48" HeightRequest="52" CornerRadius="24" LipHeight="4"
-                               FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" Clicked="OnBackClicked">
-                    <Image Source="ic_back.png" WidthRequest="26" HeightRequest="26" />
-                </c:CandyButton>
-                <c:CandyButton x:Name="UndoButton" Grid.Column="2" WidthRequest="48" HeightRequest="52" CornerRadius="24" LipHeight="4"
-                               FaceTop="#5ED6FF" FaceBottom="#2EB4F2" LipColor="#1388C2" Clicked="OnUndoClicked">
-                    <Image Source="ic_action_undo.png" WidthRequest="24" HeightRequest="24" />
-                </c:CandyButton>
-                <c:CandyButton x:Name="TrashButton" Grid.Column="3" WidthRequest="48" HeightRequest="52" CornerRadius="24" LipHeight="4"
-                               FaceTop="#8DE86A" FaceBottom="#43C455" LipColor="#2A912F" Clicked="OnTrashClicked">
-                    <Image Source="ic_action_trash.png" WidthRequest="24" HeightRequest="24" />
-                </c:CandyButton>
-                <c:CandyButton x:Name="NewGameButton" Grid.Column="4" WidthRequest="48" HeightRequest="52" CornerRadius="24" LipHeight="4"
-                               FaceTop="#FFB04D" FaceBottom="#FF8A3D" LipColor="#C8581A" Clicked="OnNewGameClicked">
-                    <Image Source="ic_action_refresh.png" WidthRequest="24" HeightRequest="24" />
-                </c:CandyButton>
-            </Grid>
-
-            <!-- The board is drawn by BoardRenderer -->
-            <GraphicsView x:Name="BoardView" Grid.Row="2" />
-
-            <Label x:Name="GoalLabel" Grid.Row="3" HorizontalOptions="Center" HorizontalTextAlignment="Center"
-                   FontFamily="FredokaBold" FontSize="16" TextColor="#2B2D6E" />
-
-            <!-- Permanent banner slot, hidden after "Remove ads" -->
-            <c:AdBanner x:Name="Ad" Grid.Row="5" HeightRequest="60" />
-        </Grid>
-
-        <!-- Result card -->
-        <Grid x:Name="ResultLayer" IsVisible="False" BackgroundColor="#99000000">
-            <Border BackgroundColor="White" StrokeThickness="0" WidthRequest="310"
-                    HorizontalOptions="Center" VerticalOptions="Center" Padding="22,24">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="32" />
-                </Border.StrokeShape>
-                <VerticalStackLayout Spacing="10">
-                    <Label x:Name="ResultTitle" HorizontalOptions="Center" HorizontalTextAlignment="Center"
-                           FontFamily="FredokaBold" FontSize="30" TextColor="#2B2D6E" />
-                    <Label x:Name="ResultBody" HorizontalOptions="Center" HorizontalTextAlignment="Center"
-                           FontFamily="FredokaBold" FontSize="17" TextColor="#5A5A8A" />
-                    <c:CandyButton x:Name="PrimaryButton" HeightRequest="60" Margin="0,8,0,0" CornerRadius="22" LipHeight="6"
-                                   FaceTop="#8DE86A" FaceBottom="#43C455" LipColor="#2A912F" FontSize="22" Clicked="OnPrimaryClicked" />
-                    <c:CandyButton x:Name="SecondaryButton" HeightRequest="56" CornerRadius="22" LipHeight="6"
-                                   FaceTop="#7FCBFF" FaceBottom="#3E9CFF" LipColor="#1F6FCC" FontSize="20" Clicked="OnSecondaryClicked" />
-                    <c:CandyButton x:Name="MenuButton" HeightRequest="56" CornerRadius="22" LipHeight="6"
-                                   FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" FontSize="20" Text="Menu" Clicked="OnMenuClicked" />
-                </VerticalStackLayout>
-            </Border>
-        </Grid>
+        <!-- Permanent banner slot, hidden after "Remove ads" -->
+        <c:AdBanner x:Name="Ad" Grid.Row="1" HeightRequest="60" />
     </Grid>
 </ContentPage>

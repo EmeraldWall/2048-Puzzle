@@ -27,6 +27,7 @@ public partial class SettingsPage : ContentPage
 
         BuildSwatches();
         ReminderSwitch.IsToggled = _progress.ReminderEnabled;
+        SoundSwitch.IsToggled = _progress.SoundEnabled;
         VersionLabel.Text = $"Version {AppInfo.Current.VersionString}";
         RefreshStore();
         _loading = false;
@@ -82,6 +83,14 @@ public partial class SettingsPage : ContentPage
     }
 
     private async void OnBackClicked(object? sender, EventArgs e) => await Navigation.PopAsync();
+
+    private void OnSoundToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_loading)
+            return;
+        _progress.SoundEnabled = e.Value;
+        AppServices.Sound.Play(Sfx.Tap);
+    }
 
     private async void OnReminderToggled(object? sender, ToggledEventArgs e)
     {

@@ -9,7 +9,7 @@ import sys
 from fontTools.ttLib import TTFont
 from fontTools.pens.basePen import BasePen
 
-CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZxX+!:.-/ "
+CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+!:.,-/'()%?#&x "
 
 
 class PathPen(BasePen):
@@ -49,13 +49,13 @@ def main(font_path, out_path):
     cap_height = getattr(font["OS/2"], "sCapHeight", 0) or int(upm * 0.7)
 
     lines = []
-    for ch in CHARS:
+    for ch in dict.fromkeys(CHARS):
         name = cmap[ord(ch)]
         pen = PathPen(glyph_set)
         glyph_set[name].draw(pen)
         advance = font["hmtx"][name][0]
         path = "".join(pen.parts)
-        esc = ch.replace("\\", "\\\\").replace("\"", "\\\"")
+        esc = {"'": "\\'", "\\": "\\\\"}.get(ch, ch)
         lines.append(f'        [\'{esc}\'] = new GlyphShape({advance}, "{path}"),')
 
     with open(out_path, "w") as f:

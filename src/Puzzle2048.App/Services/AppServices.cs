@@ -12,5 +12,8 @@ public static class AppServices
     /// <summary>Replaced with the Android implementation at startup.</summary>
     public static IReminderService Reminders { get; set; } = new NoReminderService();
 
+    /// <summary>Replaced with the Android implementation at startup.</summary>
+    public static ISoundService Sound { get; set; } = new NoSoundService();
+
     public static string StoreUrl => string.Format(AppConstants.StoreUrlFormat, AppInfo.Current.PackageName);
 }

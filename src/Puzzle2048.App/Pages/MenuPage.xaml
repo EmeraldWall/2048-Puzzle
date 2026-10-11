@@ -3,17 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:c="clr-namespace:Puzzle2048.App.Controls"
              x:Class="Puzzle2048.App.Pages.MenuPage"
-             NavigationPage.HasNavigationBar="False">
-
-    <ContentPage.Background>
-        <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
-            <GradientStop Color="#6FD0FF" Offset="0.0" />
-            <GradientStop Color="#8FA8FF" Offset="0.5" />
-            <GradientStop Color="#C48BFF" Offset="1.0" />
-        </LinearGradientBrush>
-    </ContentPage.Background>
+             NavigationPage.HasNavigationBar="False"
+             SafeAreaEdges="Container"
+             BackgroundColor="#A5E1FF">
 
     <Grid RowDefinitions="*,Auto">
+        <!-- Animated candy backdrop, drawn by the same code as the game screen -->
+        <GraphicsView x:Name="BackdropView" InputTransparent="True" />
+
         <ScrollView>
             <VerticalStackLayout Padding="16,14,16,16" Spacing="12">
 
@@ -59,6 +56,7 @@
                         <Label x:Name="DailyGoalLabel" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="FredokaBold" FontSize="17" TextColor="White" />
                         <Label x:Name="DailyStatus" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="FredokaBold" FontSize="15" TextColor="#FFF3D6" />
                         <Label x:Name="DailyStreak" HorizontalOptions="Center" FontFamily="FredokaBold" FontSize="15" TextColor="#FFF3D6" />
+                        <Label x:Name="DailyStars" HorizontalOptions="Center" FontSize="24" TextColor="#FFE45C" />
                     </VerticalStackLayout>
                 </c:CandyButton>
 
@@ -100,19 +98,19 @@
 
                 <HorizontalStackLayout HorizontalOptions="Center" Spacing="16" Margin="0,10,0,0">
                     <c:CandyButton WidthRequest="60" HeightRequest="64" CornerRadius="30" LipHeight="6"
-                                   FaceTop="#FFB04D" FaceBottom="#FF8A3D" LipColor="#C8581A" Clicked="OnSettingsClicked">
+                                   FaceTop="#FFB04D" FaceBottom="#FF8A3D" LipColor="#C8581A" Clicked="OnSettingsClicked" SemanticProperties.Description="Settings">
                         <Image Source="ic_settings.png" WidthRequest="30" HeightRequest="30" />
                     </c:CandyButton>
                     <c:CandyButton WidthRequest="60" HeightRequest="64" CornerRadius="30" LipHeight="6"
-                                   FaceTop="#8DE86A" FaceBottom="#43C455" LipColor="#2A912F" Clicked="OnContactClicked">
+                                   FaceTop="#8DE86A" FaceBottom="#43C455" LipColor="#2A912F" Clicked="OnContactClicked" SemanticProperties.Description="Contact us">
                         <Image Source="ic_email.png" WidthRequest="30" HeightRequest="30" />
                     </c:CandyButton>
                     <c:CandyButton WidthRequest="60" HeightRequest="64" CornerRadius="30" LipHeight="6"
-                                   FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" Clicked="OnRateClicked">
+                                   FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" Clicked="OnRateClicked" SemanticProperties.Description="Rate the game">
                         <Image Source="ic_rate.png" WidthRequest="30" HeightRequest="30" />
                     </c:CandyButton>
                     <c:CandyButton WidthRequest="60" HeightRequest="64" CornerRadius="30" LipHeight="6"
-                                   FaceTop="#7FCBFF" FaceBottom="#3E9CFF" LipColor="#1F6FCC" Clicked="OnShareClicked">
+                                   FaceTop="#7FCBFF" FaceBottom="#3E9CFF" LipColor="#1F6FCC" Clicked="OnShareClicked" SemanticProperties.Description="Share the game">
                         <Image Source="ic_share.png" WidthRequest="30" HeightRequest="30" />
                     </c:CandyButton>
                 </HorizontalStackLayout>

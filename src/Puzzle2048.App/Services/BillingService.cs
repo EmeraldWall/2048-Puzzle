@@ -23,6 +23,9 @@ public sealed class BillingService
 
     public bool AdsRemoved => _progress.AdsRemoved;
 
+    /// <summary>True after a purchase that is waiting for payment (for example cash at a shop).</summary>
+    public bool PurchasePending { get; private set; }
+
     /// <summary>Connects to Google Play, reads the price and the player's purchases. Safe to call repeatedly.</summary>
     public async Task InitializeAsync()
     {
@@ -63,6 +66,10 @@ public sealed class BillingService
                 SetAdsRemoved(true);
                 return true;
             }
+
+            // Cash and some cards settle later: Google Play then delivers the purchase on a later start
+            if (purchase is { State: PurchaseState.PaymentPending })
+                PurchasePending = true;
         }
         catch (InAppBillingPurchaseException ex) when (ex.PurchaseError == PurchaseError.AlreadyOwned)
         {

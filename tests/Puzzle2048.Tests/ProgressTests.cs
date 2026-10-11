@@ -160,3 +160,49 @@ public class ProgressTests
         Assert.Null(progress.LoadClassicGame(4));
     }
 }
+
+public class StarTests
+{
+    [Fact]
+    public void StarsRewardPlayingTheGoalAndAHighScore()
+    {
+        var goal = new DailyGoal(4, GoalType.Tile, 512);
+        Assert.Equal(0, goal.Stars(goalMet: false, score: 100, moves: 5));
+        Assert.Equal(1, goal.Stars(goalMet: false, score: 100, moves: 10));
+        Assert.Equal(2, goal.Stars(goalMet: true, score: 100, moves: 50));
+        Assert.Equal(3, goal.Stars(goalMet: true, score: goal.ThreeStarScore, moves: 50));
+    }
+
+    [Fact]
+    public void GoalProgressRunsFromZeroToOne()
+    {
+        var tile = new DailyGoal(4, GoalType.Tile, 512);
+        Assert.Equal(0, tile.Fraction(0, 0, 0));
+        Assert.Equal(1, tile.Fraction(512, 0, 0));
+        Assert.Equal(1, tile.Fraction(1024, 0, 0));
+        Assert.InRange(tile.Fraction(64, 0, 0), 0.6, 0.7);
+
+        var score = new DailyGoal(4, GoalType.Score, 3000);
+        Assert.Equal(0.5, score.Fraction(0, 1500, 0), 3);
+    }
+
+    [Fact]
+    public void BestDailyStarsAreKeptPerDay()
+    {
+        var progress = new ProgressStore(new MemoryStorage());
+        Assert.True(progress.RecordDailyStars(100, 2));
+        Assert.False(progress.RecordDailyStars(100, 1));
+        Assert.True(progress.RecordDailyStars(100, 3));
+        Assert.Equal(3, progress.DailyStars(100));
+        Assert.Equal(0, progress.DailyStars(101));
+    }
+
+    [Fact]
+    public void SoundIsOnByDefault()
+    {
+        var progress = new ProgressStore(new MemoryStorage());
+        Assert.True(progress.SoundEnabled);
+        progress.SoundEnabled = false;
+        Assert.False(progress.SoundEnabled);
+    }
+}

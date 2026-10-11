@@ -19,6 +19,7 @@ public static class MauiProgram
 
 #if ANDROID
         Services.AppServices.Reminders = new Platforms.Android.AndroidReminderService();
+        Services.AppServices.Sound = new Platforms.Android.AndroidSoundService();
 #endif
 
 #if DEBUG

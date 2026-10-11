@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:c="clr-namespace:Puzzle2048.App.Controls"
              x:Class="Puzzle2048.App.Pages.SettingsPage"
-             NavigationPage.HasNavigationBar="False">
+             NavigationPage.HasNavigationBar="False"
+             SafeAreaEdges="Container">
 
     <ContentPage.Background>
         <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
@@ -18,7 +19,7 @@
 
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                 <c:CandyButton WidthRequest="48" HeightRequest="52" CornerRadius="24" LipHeight="4"
-                               FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" Clicked="OnBackClicked">
+                               FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" Clicked="OnBackClicked" SemanticProperties.Description="Back">
                     <Image Source="ic_back.png" WidthRequest="26" HeightRequest="26" />
                 </c:CandyButton>
                 <Label Grid.Column="1" Text="Settings" VerticalOptions="Center"
@@ -34,6 +35,20 @@
                     <Label Text="Game background" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
                     <FlexLayout x:Name="Swatches" Wrap="Wrap" JustifyContent="Start" />
                 </VerticalStackLayout>
+            </Border>
+
+            <!-- Sound -->
+            <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16,12">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="22" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Sound effects" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
+                        <Label Text="Pops, chimes and fanfares" FontFamily="FredokaBold" FontSize="13" TextColor="White" />
+                    </VerticalStackLayout>
+                    <Switch x:Name="SoundSwitch" Grid.Column="1" VerticalOptions="Center" OnColor="#FF4F9A" Toggled="OnSoundToggled" />
+                </Grid>
             </Border>
 
             <!-- Reminder -->

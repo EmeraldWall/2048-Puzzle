@@ -3,70 +3,100 @@ using Microsoft.Maui.Graphics.Skia;
 using Puzzle2048.Core;
 using Puzzle2048.Rendering;
 
+// Renders the game screen in several states to PNG files, at the size of a typical phone (412 x 892 dp).
 // Usage: dotnet run --project tools/Puzzle2048.Preview -- <output folder>
 string outDir = args.Length > 0 ? args[0] : "preview";
 Directory.CreateDirectory(outDir);
 
-Color sky = Color.FromArgb("#7FD3FF");
+const float Width = 412f, Height = 892f, Scale = 2.625f, AdHeight = 60f;
 
-void Save(string name, BoardRenderer renderer, int width = 1080, int height = 1180)
+void Save(string name, IDrawable drawable)
 {
-    var context = new SkiaBitmapExportContext(width, height, 1f);
-    context.Canvas.FillColor = sky;
-    context.Canvas.FillRectangle(0, 0, width, height);
-    renderer.Draw(context.Canvas, new RectF(0, 40, width, width));
+    var context = new SkiaBitmapExportContext((int)(Width * Scale), (int)(Height * Scale), 1f);
+    context.Canvas.Scale(Scale, Scale);
+    drawable.Draw(context.Canvas, new RectF(0, 0, Width, Height - AdHeight));
+
+    // Where the banner ad sits in the app (it is a separate Android view, not part of the drawing)
+    context.Canvas.FillColor = Color.FromArgb("#E9E9EE");
+    context.Canvas.FillRectangle(0, Height - AdHeight, Width, AdHeight);
+    GlyphFont.DrawCentered(context.Canvas, "Ad banner", Width / 2f, Height - AdHeight / 2f, 11f, Color.FromArgb("#9A9AA8"));
     context.WriteToFile(Path.Combine(outDir, name));
     Console.WriteLine($"wrote {name}");
 }
 
-BoardRenderer Frozen(GameSession session, long now)
+GameSession Session(GameMode mode, int size, int[] values, int day = 20371)
 {
-    return new BoardRenderer { Session = session, Clock = () => now };
+    var session = new GameSession(mode, size, dayNumber: day, randomFactory: () => new Random(4));
+    session.Board.LoadValues(values);
+    return session;
 }
 
-// 1. Every tile colour
-var showcase = new GameSession(GameMode.Classic, 4);
-showcase.Board.LoadValues([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 0, 2]);
-Save("board_all_tiles.png", Frozen(showcase, 1_000_000));
-
-// 2. Mid game with the combo banner
-var daily = new GameSession(GameMode.Daily, dayNumber: 20000);
-daily.Board.LoadValues(new int[daily.Size * daily.Size]);
-int[] cells = new int[daily.Size * daily.Size];
-int[] sample = [2, 4, 8, 16, 0, 64, 128, 256, 4, 0, 32, 0, 0, 0, 2, 0];
-for (int i = 0; i < Math.Min(sample.Length, cells.Length); i++) cells[i] = sample[i];
-daily.Board.LoadValues(cells);
-long t = 1_000_000;
-var renderer = new BoardRenderer { Session = daily, Clock = () => t };
-renderer.ShowBanner("COMBO x3  +120");
-t += 400;
-Save("board_banner.png", renderer);
-
-// 3. A frame in the middle of a slide
-var moving = new GameSession(GameMode.Classic, 4, randomFactory: () => new Random(11));
-moving.Board.LoadValues([2, 2, 0, 4, 0, 8, 8, 0, 16, 0, 0, 16, 0, 0, 0, 2]);
-long clock = 2_000_000;
-var slideRenderer = new BoardRenderer { Session = moving, Clock = () => clock };
-MoveResult move = moving.Move(Direction.Left)!;
-slideRenderer.BeginMove(move);
-clock += 50;
-Save("board_mid_slide.png", slideRenderer);
-clock += 200;
-Save("board_after_slide.png", slideRenderer);
-
-// 4. Bigger boards
-var big = new GameSession(GameMode.Classic, 6);
-big.Board.LoadValues([2, 4, 8, 0, 16, 32, 64, 128, 0, 0, 256, 512, 0, 1024, 2, 4, 8, 16, 2048, 0, 4, 2, 0, 0, 0, 8, 16, 32, 64, 0, 0, 0, 2, 0, 4, 2]);
-Save("board_6x6.png", Frozen(big, 3_000_000));
-
-// 5. Lost board dims
-var lost = new GameSession(GameMode.Classic, 4);
-lost.Board.LoadValues([2, 4, 2, 4, 4, 2, 4, 2, 2, 4, 2, 8, 4, 2, 16, 32]);
-SetLost(lost);
-Save("board_lost.png", Frozen(lost, 4_000_000));
-
-static void SetLost(GameSession s)
+long now = 10_000_000;
+GameScene NewScene(GameSession session, HudState hud, string background = "#7FD3FF")
 {
-    // Force the end state the same way a locked board gets there
-    typeof(GameSession).GetProperty(nameof(GameSession.State))!.SetValue(s, RunState.Lost);
+    var scene = new GameScene { Session = session, Hud = hud, BackgroundColor = Color.FromArgb(background), Clock = () => now };
+    return scene;
 }
+
+// 1. Classic mid-game with power-ups
+var classic = Session(GameMode.Classic, 4, [2, 4, 8, 16, 32, 64, 128, 0, 256, 512, 0, 4, 1024, 2048, 2, 0]);
+var classicScene = NewScene(classic, new HudState
+{
+    Score = 12480, Best = 20480, ModeChip = "CLASSIC 4x4",
+    ShowPowerUps = true, CanUndo = true, CanTrash = true, TrashCharges = 2,
+});
+Save("01_classic.png", classicScene);
+
+// 2. A combo move: praise word, merge bursts and floating points caught mid-flight
+var daily = Session(GameMode.Daily, 4, [64, 64, 8, 8, 2, 4, 2, 0, 16, 0, 4, 0, 0, 2, 0, 0], day: 20370);
+var dailyScene = NewScene(daily, new HudState
+{
+    Score = 1840, Best = 2310, ModeChip = "DAILY  OCT 10",
+    StripText = "Make a 512 tile", StripFraction = 0.62f, BottomHint = "Same puzzle for everyone today",
+});
+MoveResult move = daily.Move(Direction.Left)!;
+dailyScene.OnMove(move);
+dailyScene.Praise("GREAT!", "x3 COMBO  +120", Color.FromArgb("#FFD93D"), Color.FromArgb("#FF8F3D"), Color.FromArgb("#5B2A86"));
+dailyScene.Hud.Score = 1840 + move.PointsEarned;
+now += 330;
+Save("02_combo.png", dailyScene);
+
+// 3. Time Attack in the last seconds
+var timeAttack = Session(GameMode.TimeAttack, 4, [4, 8, 16, 2, 32, 64, 8, 4, 2, 128, 16, 2, 0, 4, 2, 0]);
+var taScene = NewScene(timeAttack, new HudState
+{
+    Score = 3120, Best = 4080, ModeChip = "TIME ATTACK",
+    StripText = "0:07", StripFraction = 0.08f, StripUrgent = true, BottomHint = "Every merge adds time",
+}, "#FFC1DE");
+Save("03_time_attack.png", taScene);
+
+// 4. Daily result with three stars and confetti
+var won = Session(GameMode.Daily, 4, [512, 128, 64, 8, 16, 32, 8, 2, 4, 2, 4, 0, 2, 0, 0, 0], day: 20370);
+var resultScene = NewScene(won, new HudState { Score = 4210, Best = 4210, ModeChip = "DAILY  OCT 10", StripText = "Make a 512 tile", StripFraction = 1f, StripDone = true });
+resultScene.ShowResult(new ResultCard
+{
+    Title = "Goal complete!",
+    Stars = 3,
+    Celebrate = true,
+    Lines = ["Score 4,210", "Best today 4,210", "Streak 6 days"],
+    Primary = "Play again", Secondary = "Share", Tertiary = "Menu",
+});
+now += 1600;
+Save("04_result_daily.png", resultScene);
+
+// 5. 6x6 board on mint
+var big = Session(GameMode.Classic, 6, [2, 4, 8, 0, 16, 32, 64, 128, 0, 0, 256, 512, 0, 1024, 2, 4, 8, 16, 2048, 0, 4, 2, 0, 0, 0, 8, 16, 32, 64, 0, 0, 0, 2, 0, 4, 2]);
+Save("05_classic_6x6.png", NewScene(big, new HudState
+{
+    Score = 26880, Best = 31200, ModeChip = "CLASSIC 6x6", ShowPowerUps = true, CanUndo = false, CanTrash = true, TrashCharges = 1,
+}, "#B9F6CA"));
+
+// 6. Game over card
+var lost = Session(GameMode.Classic, 4, [2, 4, 2, 4, 4, 2, 4, 2, 2, 4, 2, 8, 4, 2, 16, 32]);
+var lostScene = NewScene(lost, new HudState { Score = 2950, Best = 20480, ModeChip = "CLASSIC 4x4", ShowPowerUps = true, TrashCharges = 0 });
+lostScene.ShowResult(new ResultCard { Title = "Game over", Lines = ["Score 2,950", "Best 20,480"], Primary = "Try again", Secondary = "Share", Tertiary = "Menu" });
+now += 1000;
+Save("06_game_over.png", lostScene);
+
+// 7. Menu backdrop alone
+Save("07_backdrop.png", new Backdrop { Clock = () => now });

@@ -5,18 +5,21 @@ Written in C# with .NET MAUI, so it opens, builds and runs from Visual Studio.
 
 ![Logo](docs/screenshots/logo.png)
 
-![All tile colours](docs/screenshots/board_all_tiles.png) ![Combo banner](docs/screenshots/board_combo_banner.png)
+<img src="docs/screenshots/01_classic.png" width="200"> <img src="docs/screenshots/02_combo.png" width="200"> <img src="docs/screenshots/03_time_attack.png" width="200"> <img src="docs/screenshots/04_result_daily.png" width="200">
 
-_These images are drawn by the game's own board renderer (`tools/Puzzle2048.Preview`)._
+_These images are drawn by the game's own scene renderer (`tools/Puzzle2048.Preview`). The grey strip is where the ad banner sits._
 
 ## What is in the game
 
 - **Classic** on 4x4, 5x5 and 6x6 boards with undo, a tile-removal power-up and a saved game
 - **Daily Challenge**: one puzzle per UTC day, the same tile sequence and goal for everyone, unlimited retries, best score of the day, a daily streak and a shareable result
-- **Time Attack**: 60 seconds, every merge adds time
+- **Time Attack**: 60 seconds, every merge adds time (up to 90)
 - **Sprint**: reach 512 as fast as you can
 - **Combos**: merge on consecutive moves for up to +200% bonus points
 - **Levels**: every point you score fills a level bar; completing a daily goal adds bonus points
+- **Daily stars**: one to three stars for each daily challenge, shown on the menu
+- **Game feel**: candy style tiles, bouncy slides and pops, particle bursts, floating points, praise words for combos and big tiles, confetti, screen shake, a level-up celebration and an animated backdrop
+- **Sound**: bubble pops that rise in pitch with the tile value, plus jingles for combos, wins and level-ups. Can be switched off in Settings
 - **Daily reminder**: optional, one evening notification, only if the daily challenge has not been played yet
 - **Ads and purchase**: Google AdMob banner at the bottom of every screen, removed by a one-time Google Play purchase (`remove_ads`)
 - English only, portrait, Android 7.0 (API 24) and newer, 64-bit devices
@@ -81,11 +84,12 @@ The files appear in `src\Puzzle2048.App\bin\Release\net10.0-android\publish\`:
 | Folder | What it holds |
 | --- | --- |
 | `src/Puzzle2048.Core` | Game rules, modes, scoring, daily challenge, progress. No UI, fully tested |
-| `src/Puzzle2048.Rendering` | Draws the board and animates moves. Uses vector text, so it looks the same on every phone |
+| `src/Puzzle2048.Rendering` | Draws the whole game screen (`GameScene`): board, header, buttons, effects and result cards. Uses vector text, so it looks the same on every phone |
 | `src/Puzzle2048.App` | The Android app: screens, ads, billing, reminders |
 | `tests` | Unit tests for the rules, progress and rendering helpers |
-| `tools/Puzzle2048.Preview` | Draws boards to PNG files, to check the look without a phone |
+| `tools/Puzzle2048.Preview` | Draws game screens to PNG files, to check the look without a phone |
 | `tools/generate_glyphs.py` | Rebuilds the vector font data from the Fredoka font |
+| `tools/generate_sounds.py` | Rebuilds the sound effects in `Resources/Raw/sfx` (pure Python, no samples, so no third-party audio rights) |
 
 Run the tests with `dotnet test tests/Puzzle2048.Tests` or from Test Explorer.
 

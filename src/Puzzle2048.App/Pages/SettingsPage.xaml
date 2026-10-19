@@ -14,68 +14,72 @@
         </LinearGradientBrush>
     </ContentPage.Background>
 
-    <ScrollView>
-        <VerticalStackLayout Padding="18,16,18,24" Spacing="14">
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="18,16,18,24" Spacing="14">
 
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                <c:CandyButton WidthRequest="48" HeightRequest="52" CornerRadius="24" LipHeight="4"
-                               FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" Clicked="OnBackClicked" SemanticProperties.Description="Back">
-                    <Image Source="ic_back.png" WidthRequest="26" HeightRequest="26" />
-                </c:CandyButton>
-                <Label Grid.Column="1" Text="Settings" VerticalOptions="Center"
-                       FontFamily="FredokaBold" FontSize="32" TextColor="White" />
-            </Grid>
-
-            <!-- Background colour -->
-            <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="22" />
-                </Border.StrokeShape>
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="Game background" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
-                    <FlexLayout x:Name="Swatches" Wrap="Wrap" JustifyContent="Start" />
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Sound -->
-            <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16,12">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="22" />
-                </Border.StrokeShape>
-                <Grid ColumnDefinitions="*,Auto">
-                    <VerticalStackLayout Spacing="2">
-                        <Label Text="Sound effects" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
-                        <Label Text="Pops, chimes and fanfares" FontFamily="FredokaBold" FontSize="13" TextColor="White" />
-                    </VerticalStackLayout>
-                    <Switch x:Name="SoundSwitch" Grid.Column="1" VerticalOptions="Center" OnColor="#FF4F9A" Toggled="OnSoundToggled" />
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <c:CandyButton WidthRequest="48" HeightRequest="52" CornerRadius="24" LipHeight="4"
+                                   FaceTop="#FF8CC4" FaceBottom="#FF4F9A" LipColor="#C42872" Clicked="OnBackClicked" SemanticProperties.Description="Back">
+                        <Image Source="ic_back.png" WidthRequest="26" HeightRequest="26" />
+                    </c:CandyButton>
+                    <Label Grid.Column="1" Text="Settings" VerticalOptions="Center"
+                           FontFamily="FredokaBold" FontSize="32" TextColor="White" />
                 </Grid>
-            </Border>
 
-            <!-- Reminder -->
-            <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16,12">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="22" />
-                </Border.StrokeShape>
-                <Grid ColumnDefinitions="*,Auto">
-                    <VerticalStackLayout Spacing="2">
-                        <Label Text="Daily reminder" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
-                        <Label Text="One evening notification, only if you have not played today" FontFamily="FredokaBold" FontSize="13" TextColor="White" />
+                <!-- Background colour -->
+                <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="22" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Game background" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
+                        <Grid x:Name="Swatches" ColumnDefinitions="*,*,*,*" RowSpacing="12" />
                     </VerticalStackLayout>
-                    <Switch x:Name="ReminderSwitch" Grid.Column="1" VerticalOptions="Center" OnColor="#FF4F9A" Toggled="OnReminderToggled" />
-                </Grid>
-            </Border>
+                </Border>
 
-            <!-- Purchase -->
-            <c:CandyButton x:Name="RemoveAdsButton" HeightRequest="62" CornerRadius="22" LipHeight="7" FontSize="20"
-                           Text="Remove ads" TextColor="#7A4A00"
-                           FaceTop="#FFEE7A" FaceBottom="#FFCF2E" LipColor="#D49A00" Clicked="OnRemoveAdsClicked" />
-            <c:CandyButton HeightRequest="58" CornerRadius="22" LipHeight="7" FontSize="19" Text="Restore purchase"
-                           FaceTop="#7FCBFF" FaceBottom="#3E9CFF" LipColor="#1F6FCC" Clicked="OnRestoreClicked" />
+                <!-- Sound -->
+                <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="22" />
+                    </Border.StrokeShape>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Sound effects" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
+                            <Label Text="Pops, chimes and fanfares" FontFamily="FredokaBold" FontSize="13" TextColor="White" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="SoundSwitch" Grid.Column="1" VerticalOptions="Center" OnColor="#FF4F9A" Toggled="OnSoundToggled" />
+                    </Grid>
+                </Border>
 
-            <!-- About -->
-            <c:CandyButton HeightRequest="58" CornerRadius="22" LipHeight="7" FontSize="19" Text="About and licenses"
-                           FaceTop="#BE94FF" FaceBottom="#8F5CF2" LipColor="#6034C2" Clicked="OnAboutClicked" />
-            <Label x:Name="VersionLabel" HorizontalOptions="Center" FontFamily="FredokaBold" FontSize="14" TextColor="White" />
-        </VerticalStackLayout>
-    </ScrollView>
+                <!-- Reminder -->
+                <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="22" />
+                    </Border.StrokeShape>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Daily reminder" FontFamily="FredokaBold" FontSize="20" TextColor="White" />
+                            <Label Text="One evening notification, only if you have not played today" FontFamily="FredokaBold" FontSize="13" TextColor="White" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="ReminderSwitch" Grid.Column="1" VerticalOptions="Center" OnColor="#FF4F9A" Toggled="OnReminderToggled" />
+                    </Grid>
+                </Border>
+
+                <!-- Purchase -->
+                <c:CandyButton x:Name="RemoveAdsButton" HeightRequest="62" CornerRadius="22" LipHeight="7" FontSize="20"
+                               Text="Remove ads" TextColor="#7A4A00"
+                               FaceTop="#FFEE7A" FaceBottom="#FFCF2E" LipColor="#D49A00" Clicked="OnRemoveAdsClicked" />
+                <c:CandyButton HeightRequest="58" CornerRadius="22" LipHeight="7" FontSize="19" Text="Restore purchase"
+                               FaceTop="#7FCBFF" FaceBottom="#3E9CFF" LipColor="#1F6FCC" Clicked="OnRestoreClicked" />
+
+                <!-- About -->
+                <c:CandyButton HeightRequest="58" CornerRadius="22" LipHeight="7" FontSize="19" Text="About and licenses"
+                               FaceTop="#BE94FF" FaceBottom="#8F5CF2" LipColor="#6034C2" Clicked="OnAboutClicked" />
+                <Label x:Name="VersionLabel" HorizontalOptions="Center" FontFamily="FredokaBold" FontSize="14" TextColor="White" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <c:DialogHost x:Name="Dialog" />
+    </Grid>
 </ContentPage>

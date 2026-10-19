@@ -117,6 +117,9 @@
             </VerticalStackLayout>
         </ScrollView>
 
+        <!-- Candy popups cover the menu but never the ad -->
+        <c:DialogHost x:Name="Dialog" />
+
         <!-- Permanent banner slot, hidden after "Remove ads" -->
         <c:AdBanner x:Name="Ad" Grid.Row="1" HeightRequest="60" />
     </Grid>

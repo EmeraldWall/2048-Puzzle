@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls.Shapes;
+using Puzzle2048.App.Controls;
 using Puzzle2048.App.Services;
 using Puzzle2048.Core;
 
@@ -49,28 +50,36 @@ public partial class SettingsPage : ContentPage
     private void BuildSwatches()
     {
         Swatches.Children.Clear();
-        foreach (string hex in Backgrounds)
+        Swatches.RowDefinitions.Clear();
+        for (int i = 0; i < Backgrounds.Length; i++)
         {
+            string hex = Backgrounds[i];
+            if (i % 4 == 0)
+                Swatches.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
             bool selected = string.Equals(hex, _progress.BackgroundColor, StringComparison.OrdinalIgnoreCase);
             var swatch = new Border
             {
-                WidthRequest = 52,
-                HeightRequest = 52,
-                Margin = new Thickness(0, 0, 10, 10),
+                WidthRequest = 54,
+                HeightRequest = 54,
+                HorizontalOptions = LayoutOptions.Center,
                 BackgroundColor = Color.FromArgb(hex),
                 Stroke = selected ? Colors.White : Color.FromArgb("#55FFFFFF"),
                 StrokeThickness = selected ? 5 : 2,
-                StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(26) },
+                StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(27) },
+                Scale = selected ? 1.08 : 1,
             };
+            SemanticProperties.SetDescription(swatch, selected ? $"Background {i + 1}, selected" : $"Background {i + 1}");
 
             var tap = new TapGestureRecognizer();
             tap.Tapped += (_, _) =>
             {
+                AppServices.Sound.Play(Sfx.Tap);
                 _progress.BackgroundColor = hex;
                 BuildSwatches();
             };
             swatch.GestureRecognizers.Add(tap);
-            Swatches.Children.Add(swatch);
+            Swatches.Add(swatch, i % 4, i / 4);
         }
     }
 
@@ -83,6 +92,8 @@ public partial class SettingsPage : ContentPage
     }
 
     private async void OnBackClicked(object? sender, EventArgs e) => await Navigation.PopAsync();
+
+    protected override bool OnBackButtonPressed() => Dialog.HandleBack() || base.OnBackButtonPressed();
 
     private void OnSoundToggled(object? sender, ToggledEventArgs e)
     {
@@ -104,8 +115,9 @@ public partial class SettingsPage : ContentPage
                 _loading = true;
                 ReminderSwitch.IsToggled = false;
                 _loading = false;
-                await DisplayAlertAsync("Notifications are off",
-                    "Allow notifications for this app in your phone settings to get the daily reminder.", "OK");
+                await Dialog.ShowAsync("Notifications are off",
+                    "Allow notifications for this app in your phone settings to get the daily reminder.", "Got it",
+                    tone: DialogTone.Blue);
             }
         }
         else
@@ -117,15 +129,20 @@ public partial class SettingsPage : ContentPage
     private async void OnRemoveAdsClicked(object? sender, EventArgs e)
     {
         if (await AppServices.Billing.BuyAsync())
-            await DisplayAlertAsync("Thank you!", "Ads have been removed.", "OK");
+            await Dialog.ShowAsync("Thank you!", "Ads have been removed. Enjoy the game!", "Yay!", tone: DialogTone.Gold);
+        else if (AppServices.Billing.PurchasePending)
+            await Dialog.ShowAsync("Almost there", "Your payment is pending. Ads will be removed as soon as Google Play confirms it.",
+                "OK", tone: DialogTone.Blue);
     }
 
     private async void OnRestoreClicked(object? sender, EventArgs e)
     {
         bool owned = await AppServices.Billing.RestoreAsync();
-        await DisplayAlertAsync("Restore purchase",
-            owned ? "Your purchase was restored. Ads are off." : "No earlier purchase was found for this Google Play account.",
-            "OK");
+        if (owned)
+            await Dialog.ShowAsync("Welcome back!", "Your purchase was restored. Ads are off.", "Yay!", tone: DialogTone.Gold);
+        else
+            await Dialog.ShowAsync("Restore purchase", "No earlier purchase was found for this Google Play account.",
+                "OK", tone: DialogTone.Blue);
     }
 
     private async void OnAboutClicked(object? sender, EventArgs e)
@@ -133,8 +150,44 @@ public partial class SettingsPage : ContentPage
         string text = $"2048 Puzzle {AppInfo.Current.VersionString}\n\n"
             + "Ads by Google AdMob. Purchases by Google Play Billing.\n\n"
             + "The Fredoka Bold font is used under the SIL Open Font License 1.1:\n\n"
-            + await ReadAssetAsync("Fredoka-OFL.txt");
-        await DisplayAlertAsync("About and licenses", text, "OK");
+            + Reflow(await ReadAssetAsync("Fredoka-OFL.txt"));
+        await Dialog.ShowAsync("About", text, "Close", tone: DialogTone.Purple, longText: true);
+    }
+
+    // Licence files are hard-wrapped for a wide screen. Join each paragraph into one line so it wraps to the
+    // phone, keep short all-caps headings on their own line and drop the dashed rules.
+    private static string Reflow(string text)
+    {
+        var paragraphs = new List<string>();
+        foreach (string block in text.Replace("\r", "").Split("\n\n"))
+        {
+            var lines = new List<string>();
+            string current = "";
+            foreach (string raw in block.Split('\n'))
+            {
+                string line = raw.Trim();
+                if (line.Length == 0 || line.All(ch => ch == '-'))
+                    continue;
+                bool heading = lines.Count == 0 && current.Length == 0 && line.Length <= 40
+                    && line.Any(char.IsLetter) && line.Where(char.IsLetter).All(char.IsUpper);
+                if (heading)
+                {
+                    if (current.Length > 0)
+                        lines.Add(current);
+                    lines.Add(line);
+                    current = "";
+                }
+                else
+                {
+                    current = current.Length == 0 ? line : current + " " + line;
+                }
+            }
+            if (current.Length > 0)
+                lines.Add(current);
+            if (lines.Count > 0)
+                paragraphs.Add(string.Join("\n", lines));
+        }
+        return string.Join("\n\n", paragraphs);
     }
 
     private static async Task<string> ReadAssetAsync(string name)

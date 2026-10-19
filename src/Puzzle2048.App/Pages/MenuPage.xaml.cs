@@ -1,3 +1,4 @@
+using Puzzle2048.App.Controls;
 using Puzzle2048.App.Services;
 using Puzzle2048.Core;
 using Puzzle2048.Rendering;
@@ -131,10 +132,13 @@ public partial class MenuPage : ContentPage
     private async void OnRemoveAdsClicked(object? sender, EventArgs e)
     {
         if (await AppServices.Billing.BuyAsync())
-            await DisplayAlertAsync("Thank you!", "Ads have been removed.", "OK");
+            await Dialog.ShowAsync("Thank you!", "Ads have been removed. Enjoy the game!", "Yay!", tone: DialogTone.Gold);
         else if (AppServices.Billing.PurchasePending)
-            await DisplayAlertAsync("Almost there", "Your payment is pending. Ads will be removed as soon as Google Play confirms it.", "OK");
+            await Dialog.ShowAsync("Almost there", "Your payment is pending. Ads will be removed as soon as Google Play confirms it.",
+                "OK", tone: DialogTone.Blue);
     }
+
+    protected override bool OnBackButtonPressed() => Dialog.HandleBack() || base.OnBackButtonPressed();
 
     private async void OnSettingsClicked(object? sender, EventArgs e) => await Navigation.PushAsync(new SettingsPage());
 
@@ -146,7 +150,7 @@ public partial class MenuPage : ContentPage
         }
         catch (Exception ex) when (ex is FeatureNotSupportedException or InvalidOperationException)
         {
-            await DisplayAlertAsync("Contact us", $"Please write to {AppConstants.SupportEmail}", "OK");
+            await Dialog.ShowAsync("Contact us", $"Please write to {AppConstants.SupportEmail}", "OK", tone: DialogTone.Blue);
         }
     }
 
@@ -176,9 +180,9 @@ public partial class MenuPage : ContentPage
             return;
 
         _progress.ReminderPrompted = true;
-        bool yes = await DisplayAlertAsync("Never miss a day",
+        bool yes = await Dialog.ShowAsync("Never miss a day",
             "Get one reminder each evening, only when you have not played today's challenge yet. You can turn it off any time in Settings.",
-            "Remind me", "No thanks");
+            "Remind me", "No thanks", DialogTone.Pink);
         if (yes)
             await AppServices.Reminders.EnableAsync();
     }

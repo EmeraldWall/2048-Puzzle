@@ -8,12 +8,8 @@
 
     <!-- The whole game screen is drawn by GameScene; only the ad is a separate view -->
     <Grid RowDefinitions="*,Auto">
-        <GraphicsView x:Name="SceneView" SemanticProperties.Description="2048 game board. Swipe to move the tiles.">
-            <GraphicsView.GestureRecognizers>
-                <PanGestureRecognizer PanUpdated="OnPan" />
-                <TapGestureRecognizer Tapped="OnTapped" />
-            </GraphicsView.GestureRecognizers>
-        </GraphicsView>
+        <!-- Touches are read straight from the Android view in code, for the quickest response -->
+        <GraphicsView x:Name="SceneView" SemanticProperties.Description="2048 game board. Swipe to move the tiles." />
 
         <!-- Permanent banner slot, hidden after "Remove ads" -->
         <c:AdBanner x:Name="Ad" Grid.Row="1" HeightRequest="60" />

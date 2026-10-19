@@ -5,7 +5,18 @@ using Puzzle2048.Rendering;
 
 // Renders the game screen in several states to PNG files, at the size of a typical phone (412 x 892 dp).
 // Usage: dotnet run --project tools/Puzzle2048.Preview -- <output folder>
-string outDir = args.Length > 0 ? args[0] : "preview";
+//        dotnet run -c Release --project tools/Puzzle2048.Preview -- --bench   (frame cost while tiles move)
+if (args.Contains("--bench"))
+{
+    Bench.Run();
+    return;
+}
+
+// --sprites draws through the sprite cache, the way the app does
+if (args.Contains("--sprites"))
+    SkiaSprite.Install(2.625f);
+
+string outDir = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? "preview";
 Directory.CreateDirectory(outDir);
 
 const float Width = 412f, Height = 892f, Scale = 2.625f, AdHeight = 60f;

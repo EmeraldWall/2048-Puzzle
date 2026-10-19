@@ -23,6 +23,7 @@ _These images are drawn by the game's own scene renderer (`tools/Puzzle2048.Prev
 - **Daily reminder**: optional, one evening notification, only if the daily challenge has not been played yet
 - **Account**: optional Google Play Games sign-in with a cloud save of the level, streaks, records and stars, six leaderboards and ten achievements. "Delete my data" in Settings wipes the progress from the phone and the cloud. The game works fully without signing in
 - **Ads and purchase**: Google AdMob banner at the bottom of every screen, removed by a one-time Google Play purchase (`remove_ads`)
+- **Smooth on fast screens**: frames follow the display (60, 90, 120 or 144 Hz) and the game asks for the screen's highest refresh rate while you play. Swipes are read from raw touches and act as soon as the direction is clear
 - English only, portrait, Android 7.0 (API 24) and newer, 64-bit devices
 
 ## Build it with Visual Studio
@@ -108,11 +109,18 @@ Children whose Google account is supervised with Family Link need a parent's app
 | `src/Puzzle2048.Rendering` | Draws the whole game screen (`GameScene`): board, header, buttons, effects and result cards. Uses vector text, so it looks the same on every phone |
 | `src/Puzzle2048.App` | The Android app: screens, ads, billing, reminders |
 | `tests` | Unit tests for the rules, progress and rendering helpers |
-| `tools/Puzzle2048.Preview` | Draws game screens to PNG files, to check the look without a phone |
+| `tools/Puzzle2048.Preview` | Draws game screens to PNG files, to check the look without a phone. `--sprites` draws through the sprite cache like the app; `--bench` times frames while tiles move |
 | `tools/generate_glyphs.py` | Rebuilds the vector font data from the Fredoka font |
 | `tools/generate_sounds.py` | Rebuilds the sound effects in `Resources/Raw/sfx` (pure Python, no samples, so no third-party audio rights) |
 
 Run the tests with `dotnet test tests/Puzzle2048.Tests` or from Test Explorer.
+
+## How it stays smooth
+
+- **Vsync loop**: the game screen redraws from Android's Choreographer, once per display refresh, and every animation reads the frame's own time. When nothing moves it drops to about 15 frames a second for the drifting background.
+- **High refresh rate**: on Android 15 and newer the game view asks for a high frame rate; on older versions the window picks the display's fastest mode. The phone goes back to its normal rate when you leave the game.
+- **Sprite cache** (`Rendering/Sprites.cs`): tiles, the board, letters, candy panels, icons, particles and the background are drawn once into bitmaps and then stamped, so a frame is a few dozen texture draws and creates no Android objects. The preview tool's `--sprites` mode checks that the cached look matches the vector drawing.
+- **Raw touch**: a swipe triggers after 14 dp of movement while the finger is still down, a quick flick of 7 dp counts when it lifts, and buttons sink the moment they are touched.
 
 ## Licenses and credits
 

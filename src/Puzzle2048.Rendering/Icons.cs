@@ -18,6 +18,26 @@ public static class Icons
 {
     public static void Draw(ICanvas canvas, IconKind kind, RectF box, Color color)
     {
+        if (Sprites.Enabled && color.Alpha > 0.004f)
+        {
+            float pad = MathF.Min(box.Width, box.Height) * 0.12f;
+            Color solid = color.WithAlpha(1f);
+            var key = new SpriteKey(Sprites.KindIcon, (int)kind, (int)MathF.Round(box.Width * Sprites.PixelScale),
+                (int)MathF.Round(box.Height * Sprites.PixelScale), Sprites.Argb(solid), 0, 0, 0);
+            if (!Sprites.TryGet(key, out Sprite sprite))
+            {
+                var local = new RectF(pad, pad, box.Width, box.Height);
+                sprite = Sprites.Create(key, box.Width + pad * 2, box.Height + pad * 2, cv => DrawVector(cv, kind, local, solid));
+            }
+            SizeF size = Sprites.SizeOf(sprite);
+            sprite.Draw(canvas, new RectF(box.X - pad, box.Y - pad, size.Width, size.Height), color.Alpha);
+            return;
+        }
+        DrawVector(canvas, kind, box, color);
+    }
+
+    private static void DrawVector(ICanvas canvas, IconKind kind, RectF box, Color color)
+    {
         float s = MathF.Min(box.Width, box.Height);
         float cx = box.Center.X;
         float cy = box.Center.Y;

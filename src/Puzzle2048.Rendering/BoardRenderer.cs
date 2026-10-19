@@ -14,7 +14,11 @@ public sealed class BoardRenderer : IDrawable
     public const long PopMilliseconds = 180;
     public const long RevealMilliseconds = 420;
 
+    private const float TileLip = 0.075f;
+
     private MoveResult? _move;
+    private TileSlide[] _slides = [];
+    private readonly HashSet<int> _mergedIds = [];
     private long _moveStart = -1_000_000;
     private long _revealStart = -1_000_000;
 
@@ -42,6 +46,12 @@ public sealed class BoardRenderer : IDrawable
     {
         _move = result;
         _moveStart = Clock();
+
+        // Worked out once per move, not every frame: merging tiles slide underneath the others
+        _slides = [.. result.Outcome.Slides.OrderBy(s => s.MergedIntoId is null ? 1 : 0)];
+        _mergedIds.Clear();
+        foreach (Tile merged in result.Outcome.Merged)
+            _mergedIds.Add(merged.Id);
     }
 
     /// <summary>Pops all tiles in one after another, for a new or loaded game.</summary>
@@ -73,15 +83,36 @@ public sealed class BoardRenderer : IDrawable
         int size = Session?.Size ?? 4;
         var g = new Geometry(square, size);
 
-        DrawPlate(canvas, g);
-        for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
-                DrawEmptyCell(canvas, g.CellRect(x, y), g.CellRadius);
+        if (Sprites.Enabled)
+        {
+            // The plate and its empty cells never change during a game
+            float pad = g.Side * 0.09f;
+            var key = new SpriteKey(Sprites.KindBoard, size, (int)MathF.Round(g.Side * Sprites.PixelScale), 0, 0, 0, 0, 0);
+            if (!Sprites.TryGet(key, out Sprite sprite))
+            {
+                var local = new Geometry(new RectF(pad, pad, g.Side, g.Side), size);
+                sprite = Sprites.Create(key, g.Side + pad * 2, g.Side + pad * 2, cv => DrawEmptyBoard(cv, local));
+            }
+            SizeF spriteSize = Sprites.SizeOf(sprite);
+            sprite.Draw(canvas, new RectF(g.Left - pad, g.Top - pad, spriteSize.Width, spriteSize.Height), 1f);
+        }
+        else
+        {
+            DrawEmptyBoard(canvas, g);
+        }
 
         if (Session is not null)
             DrawTiles(canvas, g, Session);
 
         DrawEndTint(canvas, g);
+    }
+
+    private static void DrawEmptyBoard(ICanvas canvas, Geometry g)
+    {
+        DrawPlate(canvas, g);
+        for (int y = 0; y < g.Size; y++)
+            for (int x = 0; x < g.Size; x++)
+                DrawEmptyCell(canvas, g.CellRect(x, y), g.CellRadius);
     }
 
     private void DrawTiles(ICanvas canvas, Geometry g, GameSession session)
@@ -93,7 +124,7 @@ public sealed class BoardRenderer : IDrawable
         {
             // Every tile that was on the board slides toward its new place; merging pairs overlap
             float t = EaseOutCubic(sinceMove / (float)SlideMilliseconds);
-            foreach (TileSlide slide in _move.Outcome.Slides.OrderBy(s => s.MergedIntoId is null ? 1 : 0))
+            foreach (TileSlide slide in _slides)
                 DrawTile(canvas, g, Lerp(slide.FromX, slide.ToX, t), Lerp(slide.FromY, slide.ToY, t), slide.Value, 1f, now);
             return;
         }
@@ -107,7 +138,7 @@ public sealed class BoardRenderer : IDrawable
             {
                 if (_move.Spawned is { } spawned && spawned.Id == tile.Id)
                     scale = EaseOutBack(pop);
-                else if (_move.Outcome.Merged.Any(m => m.Id == tile.Id))
+                else if (_mergedIds.Contains(tile.Id))
                     scale = 1f + 0.2f * MathF.Sin(MathF.PI * pop);
             }
 
@@ -141,23 +172,29 @@ public sealed class BoardRenderer : IDrawable
             for (int ring = 3; ring >= 1; ring--)
             {
                 float grow = w * 0.045f * ring;
-                FillRounded(canvas, rect.Inflate(grow, grow), radius + grow, style.Light.WithAlpha(0.13f * strength * pulse));
+                Blob(canvas, rect.Inflate(grow, grow), radius + grow, style.Light.WithAlpha(0.13f * strength * pulse));
             }
         }
 
-        RectF face = CandyPanel(canvas, rect, radius, style.Light, style.Main, style.Edge, lipRatio: 0.075f);
-
-        string text = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        float fontSize = face.Height * text.Length switch { 1 => 0.47f, 2 => 0.44f, 3 => 0.36f, 4 => 0.29f, _ => 0.24f };
-        if (style.Text == Palette.White)
+        RectF face;
+        if (Sprites.Enabled)
         {
-            GlyphFont.DrawStyled(canvas, text, face.Center.X, face.Center.Y, fontSize,
-                Colors.White, Color.FromArgb("#FFF4E0"), Darken(style.Edge, 0.35f), fontSize * 0.09f, Colors.Black.WithAlpha(0.22f));
+            // The candy face and its number come from one sprite per value and cell size
+            float pad = cell.Width * 0.24f;
+            var key = new SpriteKey(Sprites.KindTile, value, (int)MathF.Round(cell.Width * Sprites.PixelScale), 0, 0, 0, 0, 0);
+            if (!Sprites.TryGet(key, out Sprite sprite))
+            {
+                var local = new RectF(pad, pad, cell.Width, cell.Height);
+                float cellRadius = g.CellRadius;
+                sprite = Sprites.Create(key, cell.Width + pad * 2, cell.Height + pad * 2, cv => DrawTileFace(cv, local, cellRadius, value, style));
+            }
+            SizeF size = Sprites.SizeOf(sprite);
+            sprite.Draw(canvas, Zoom(new RectF(cell.X - pad, cell.Y - pad, size.Width, size.Height), scale, cell.Center), 1f);
+            face = Zoom(PanelFace(cell, TileLip), scale, cell.Center);
         }
         else
         {
-            GlyphFont.DrawStyled(canvas, text, face.Center.X, face.Center.Y, fontSize,
-                Palette.Navy, Palette.Navy, null, 0, Colors.White.WithAlpha(0.55f));
+            face = DrawTileFace(canvas, rect, radius, value, style);
         }
 
         // 2048 and up: twinkling sparkles
@@ -172,6 +209,25 @@ public sealed class BoardRenderer : IDrawable
                 Sparkle(canvas, sx, sy, face.Width * 0.09f * (0.6f + 0.4f * a), Colors.White.WithAlpha(0.9f * a));
             }
         }
+    }
+
+    private static RectF DrawTileFace(ICanvas canvas, RectF rect, float radius, int value, TileStyle style)
+    {
+        RectF face = CandyPanel(canvas, rect, radius, style.Light, style.Main, style.Edge, lipRatio: TileLip);
+
+        string text = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        float fontSize = face.Height * text.Length switch { 1 => 0.47f, 2 => 0.44f, 3 => 0.36f, 4 => 0.29f, _ => 0.24f };
+        if (style.Text == Palette.White)
+        {
+            GlyphFont.DrawStyled(canvas, text, face.Center.X, face.Center.Y, fontSize,
+                Colors.White, Hex("#FFF4E0"), Darken(style.Edge, 0.35f), fontSize * 0.09f, Colors.Black.WithAlpha(0.22f));
+        }
+        else
+        {
+            GlyphFont.DrawStyled(canvas, text, face.Center.X, face.Center.Y, fontSize,
+                Palette.Navy, Palette.Navy, null, 0, Colors.White.WithAlpha(0.55f));
+        }
+        return face;
     }
 
     private static void DrawEmptyCell(ICanvas canvas, RectF rect, float radius)
@@ -207,7 +263,7 @@ public sealed class BoardRenderer : IDrawable
         if (Session is null || Session.State == RunState.Playing)
             return;
 
-        Color tint = Session.State == RunState.Lost ? Color.FromArgb("#2B2D6E").WithAlpha(0.35f) : Color.FromArgb("#FFE45C").WithAlpha(0.3f);
+        Color tint = Session.State == RunState.Lost ? Hex("#2B2D6E").WithAlpha(0.35f) : Hex("#FFE45C").WithAlpha(0.3f);
         FillRounded(canvas, new RectF(g.Left, g.Top, g.Side, g.Side), g.PlateRadius, tint);
     }
 

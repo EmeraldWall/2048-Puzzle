@@ -6,7 +6,15 @@ namespace Puzzle2048.App.Pages;
 
 public partial class GamePage : ContentPage
 {
-    private const double SwipeDistance = 22;
+    // A drag this far (dp) is a swipe, decided while the finger is still moving
+    private const float SwipeDistance = 14;
+    // A shorter flick still counts when the finger lifts quickly
+    private const float FlickDistance = 7;
+    private const long FlickMilliseconds = 180;
+    // A finger on a button that moves further than this is a swipe, not a press
+    private const float TapSlop = 10;
+    // While nothing moves, the drifting background redraws about 15 times a second
+    private const long IdleRedrawMilliseconds = 66;
     private static readonly Color Gold = Color.FromArgb("#FFD93D");
     private static readonly Color Orange = Color.FromArgb("#FF8F3D");
     private static readonly Color Plum = Color.FromArgb("#5B2A86");
@@ -21,10 +29,17 @@ public partial class GamePage : ContentPage
     private readonly ISoundService _sound = AppServices.Sound;
     private readonly long _bestAtStart;
 
-    private IDispatcherTimer? _timer;
+    private readonly IFrameTicker _frames = AppServices.Frames;
     private Window? _window;
+    private bool _looping;
     private long _lastTick;
-    private int _idleFrames;
+    private long _frameTime;
+    private long _lastDraw;
+
+    private bool _touching;
+    private PointF _touchStart;
+    private long _touchStartTime;
+    private SceneAction _touchAction;
     private bool _swipeHandled;
     private bool _runReported;
     private CardKind _card;
@@ -42,8 +57,11 @@ public partial class GamePage : ContentPage
         _bestAtStart = _progress.HighScore(mode, _session.Size);
 
         Color background = Color.FromArgb(_progress.BackgroundColor);
-        _scene = new GameScene { Session = _session, BackgroundColor = background };
+        // Everything animates on the display's frame clock, so each refresh moves by exactly one frame
+        _frameTime = _frames.Now;
+        _scene = new GameScene { Session = _session, BackgroundColor = background, Clock = () => _frameTime };
         SceneView.Drawable = _scene;
+        SceneView.HandlerChanged += OnSceneHandlerChanged;
         // The strip behind the status bar matches the top of the drawn background
         BackgroundColor = Painter.Lighten(background, 0.28f);
 
@@ -115,65 +133,158 @@ public partial class GamePage : ContentPage
 
     private void StartLoop()
     {
-        StopLoop();
-        _lastTick = Environment.TickCount64;
-        _timer = Dispatcher.CreateTimer();
-        _timer.Interval = TimeSpan.FromMilliseconds(16);
-        _timer.Tick += OnTick;
-        _timer.Start();
+        if (_looping)
+            return;
+        _looping = true;
+        _lastTick = _frameTime = _frames.Now;
+        _frames.Frame += OnFrame;
+        _frames.Start();
+        _frames.RequestHighRefreshRate(SceneView.Handler?.PlatformView, true);
     }
 
     private void StopLoop()
     {
-        if (_timer is null)
+        if (!_looping)
             return;
-        _timer.Stop();
-        _timer.Tick -= OnTick;
-        _timer = null;
+        _looping = false;
+        _frames.Frame -= OnFrame;
+        _frames.Stop();
+        _frames.RequestHighRefreshRate(SceneView.Handler?.PlatformView, false);
     }
 
     private void UpdateAdVisibility() => Ad.IsVisible = !_progress.AdsRemoved;
 
     // ------------------------------------------------------------------ input
 
-    private void OnPan(object? sender, PanUpdatedEventArgs e)
+    private void OnSceneHandlerChanged(object? sender, EventArgs e)
     {
-        switch (e.StatusType)
+#if ANDROID
+        // Raw touches straight from the Android view: no gesture recogniser in between, and every event of the
+        // touch, so a swipe is decided the moment it is clear and buttons sink the moment they are touched
+        if (SceneView.Handler?.PlatformView is Android.Views.View view)
         {
-            case GestureStatus.Started:
-                _swipeHandled = false;
+            view.Touch -= OnNativeTouch;
+            view.Touch += OnNativeTouch;
+            if (_looping)
+                _frames.RequestHighRefreshRate(view, true);
+        }
+#endif
+    }
+
+#if ANDROID
+    private void OnNativeTouch(object? sender, Android.Views.View.TouchEventArgs e)
+    {
+        if (e.Event is not { } motion)
+            return;
+        e.Handled = true;
+
+        // The same pixel-to-dp mapping the drawing uses: MAUI rounds the view to whole dp on each axis
+        var view = (Android.Views.View)sender!;
+        float density = Sprites.PixelScale;
+        float logicalWidth = MathF.Max(1f, MathF.Round(view.Width / density));
+        float logicalHeight = MathF.Max(1f, MathF.Round(view.Height / density));
+        var point = new PointF(motion.GetX() * logicalWidth / MathF.Max(1, view.Width), motion.GetY() * logicalHeight / MathF.Max(1, view.Height));
+        switch (motion.ActionMasked)
+        {
+            case Android.Views.MotionEventActions.Down:
+                TouchDown(point, motion.EventTime);
                 break;
-
-            case GestureStatus.Running when !_swipeHandled && _card == CardKind.None:
-                if (Math.Abs(e.TotalX) < SwipeDistance && Math.Abs(e.TotalY) < SwipeDistance)
-                    break;
-
-                _swipeHandled = true;
-                Direction direction = Math.Abs(e.TotalX) > Math.Abs(e.TotalY)
-                    ? (e.TotalX > 0 ? Direction.Right : Direction.Left)
-                    : (e.TotalY > 0 ? Direction.Down : Direction.Up);
-                ApplyMove(direction);
+            case Android.Views.MotionEventActions.Move:
+                TouchMove(point);
+                break;
+            case Android.Views.MotionEventActions.Up:
+                TouchUp(point, motion.EventTime);
+                break;
+            case Android.Views.MotionEventActions.Cancel:
+                TouchCancel();
                 break;
         }
     }
+#endif
 
-    private async void OnTapped(object? sender, TappedEventArgs e)
+    private void TouchDown(PointF point, long time)
     {
-        if (e.GetPosition(SceneView) is not { } point)
+        _touching = true;
+        _swipeHandled = false;
+        _touchStart = point;
+        _touchStartTime = time;
+
+        _touchAction = _scene.HitTest(point);
+        if (_touchAction != SceneAction.None)
+        {
+            _scene.Hold(_touchAction);
+            _sound.Play(Sfx.Tap);
+            Buzz(HapticFeedbackType.Click);
+            SceneView.Invalidate();
+        }
+    }
+
+    private void TouchMove(PointF point)
+    {
+        if (!_touching || _swipeHandled)
             return;
 
-        SceneAction action = _scene.HitTest(new PointF((float)point.X, (float)point.Y));
-        if (action == SceneAction.None)
-            return;
+        float dx = point.X - _touchStart.X, dy = point.Y - _touchStart.Y;
+        float distance = MathF.Max(MathF.Abs(dx), MathF.Abs(dy));
 
-        _scene.Press(action);
-        _sound.Play(Sfx.Tap);
-        Buzz(HapticFeedbackType.Click);
+        if (_touchAction != SceneAction.None)
+        {
+            if (distance < TapSlop)
+                return;
+            // Slid off the button: it pops back up and the touch can still become a swipe
+            _scene.CancelHold();
+            _touchAction = SceneAction.None;
+            SceneView.Invalidate();
+        }
+
+        if (distance >= SwipeDistance && _card == CardKind.None)
+        {
+            _swipeHandled = true;
+            ApplyMove(DirectionOf(dx, dy));
+        }
+    }
+
+    private void TouchUp(PointF point, long time)
+    {
+        if (!_touching)
+            return;
+        _touching = false;
+
+        if (_touchAction != SceneAction.None)
+        {
+            SceneAction action = _touchAction;
+            _touchAction = SceneAction.None;
+            _scene.Release();
+            SceneView.Invalidate();
+            if (_scene.HitTest(point) == action)
+                RunAction(action);
+            return;
+        }
+
+        float dx = point.X - _touchStart.X, dy = point.Y - _touchStart.Y;
+        if (!_swipeHandled && _card == CardKind.None
+            && MathF.Max(MathF.Abs(dx), MathF.Abs(dy)) >= FlickDistance && time - _touchStartTime <= FlickMilliseconds)
+        {
+            _swipeHandled = true;
+            ApplyMove(DirectionOf(dx, dy));
+        }
+    }
+
+    private void TouchCancel()
+    {
+        _touching = false;
+        _touchAction = SceneAction.None;
+        _scene.CancelHold();
         SceneView.Invalidate();
+    }
 
-        // Let the button visibly sink before the action happens
-        await Task.Delay(90);
+    private static Direction DirectionOf(float dx, float dy) =>
+        MathF.Abs(dx) > MathF.Abs(dy)
+            ? (dx > 0 ? Direction.Right : Direction.Left)
+            : (dy > 0 ? Direction.Down : Direction.Up);
 
+    private async void RunAction(SceneAction action)
+    {
         switch (action)
         {
             case SceneAction.Back:
@@ -266,21 +377,21 @@ public partial class GamePage : ContentPage
         });
     }
 
-    private void OnTick(object? sender, EventArgs e)
+    private void OnFrame(long frameTime)
     {
-        long now = Environment.TickCount64;
         // A long gap means the screen was paused, so that time is not charged to the player
-        var delta = TimeSpan.FromMilliseconds(Math.Min(now - _lastTick, 250));
-        _lastTick = now;
+        var delta = TimeSpan.FromMilliseconds(Math.Clamp(frameTime - _lastTick, 0, 250));
+        _lastTick = frameTime;
+        _frameTime = frameTime;
 
         bool timeUp = _session.Tick(delta);
         if (_session.ClockRunning || timeUp)
             UpdateHud();
 
-        // Full speed while anything moves; a calm 15 frames a second for the drifting background
-        if (_scene.IsAnimating || _session.ClockRunning || ++_idleFrames >= 4)
+        // Every refresh while anything moves; a calm 15 frames a second for the drifting background
+        if (_scene.IsAnimating || _session.ClockRunning || frameTime - _lastDraw >= IdleRedrawMilliseconds)
         {
-            _idleFrames = 0;
+            _lastDraw = frameTime;
             SceneView.Invalidate();
         }
 

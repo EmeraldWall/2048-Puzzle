@@ -36,6 +36,7 @@
     <MauiImage Include="Resources\Images\*" />
     <MauiFont Include="Resources\Fonts\*" />
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+    <ProguardConfiguration Include="Platforms\Android\proguard.cfg" />
   </ItemGroup>
 
   <ItemGroup>
@@ -43,6 +44,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
     <PackageReference Include="Xamarin.GooglePlayServices.Ads" Version="125.5.0" />
     <PackageReference Include="Plugin.InAppBilling" Version="10.0.0" />
+    <PackageReference Include="Xamarin.GooglePlayServices.Games.V2" Version="122.1.0" />
   </ItemGroup>
 
   <!--

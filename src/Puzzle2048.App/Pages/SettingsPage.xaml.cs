@@ -38,13 +38,16 @@ public partial class SettingsPage : ContentPage
     {
         base.OnAppearing();
         AppServices.Billing.AdsRemovedChanged += RefreshStore;
+        AppServices.Account.Changed += RefreshAccount;
         RefreshStore();
+        RefreshAccount();
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
         AppServices.Billing.AdsRemovedChanged -= RefreshStore;
+        AppServices.Account.Changed -= RefreshAccount;
     }
 
     private void BuildSwatches()
@@ -89,6 +92,57 @@ public partial class SettingsPage : ContentPage
         RemoveAdsButton.IsVisible = !removed;
         string? price = AppServices.Billing.Price;
         RemoveAdsButton.Text = price is null ? "Remove ads" : $"Remove ads ({price})";
+    }
+
+    private void RefreshAccount()
+    {
+        IGameAccountService account = AppServices.Account;
+        bool signedIn = account.IsAvailable && account.IsSignedIn;
+        AccountSignInButton.IsVisible = account.IsAvailable && !signedIn;
+        SyncButton.IsVisible = signedIn;
+        SyncButton.Text = account.IsSyncing ? "Saving..." : "Save progress now";
+        AccountStatus.Text = !account.IsAvailable
+            ? "Your progress is saved on this phone."
+            : signedIn
+                ? $"Signed in with Google Play Games as {account.PlayerName}. Your progress is saved to the cloud."
+                : "Sign in with Google Play Games to keep your progress on a new phone and join the leaderboards.";
+    }
+
+    private async void OnSignInClicked(object? sender, EventArgs e)
+    {
+        if (!await AppServices.Account.SignInAsync())
+            await Dialog.ShowAsync("Not signed in", "Google Play Games could not sign you in. You can keep playing and try again later.",
+                "OK", tone: DialogTone.Blue);
+    }
+
+    private async void OnSyncClicked(object? sender, EventArgs e) => await AppServices.Account.SyncAsync();
+
+    private async void OnDeleteClicked(object? sender, EventArgs e)
+    {
+        IGameAccountService account = AppServices.Account;
+        bool cloud = account.IsAvailable && account.IsSignedIn;
+        string where = cloud ? "from this phone and from your Google Play Games cloud save" : "from this phone";
+
+        bool yes = await Dialog.ShowAsync("Delete your data?",
+            $"This removes your level, streaks, records, stars and saved games {where}. It cannot be undone.",
+            "Delete", "Keep my data", danger: true);
+        if (!yes)
+            return;
+
+        // Delete the cloud copy first. If that fails, the phone keeps its copy so the two never disagree.
+        if (!await account.DeleteCloudDataAsync())
+        {
+            await Dialog.ShowAsync("Could not delete", "Google Play Games could not be reached. Check your internet connection and try again.",
+                "OK", tone: DialogTone.Blue);
+            return;
+        }
+
+        _progress.ResetProgress();
+        string profile = cloud
+            ? " Leaderboard scores and achievements belong to your Google Play Games profile, which you can manage in the Google Play Games settings."
+            : "";
+        await Dialog.ShowAsync("Data deleted", $"Your progress has been deleted. You are starting fresh!{profile}",
+            "OK", tone: DialogTone.Blue);
     }
 
     private async void OnBackClicked(object? sender, EventArgs e) => await Navigation.PopAsync();

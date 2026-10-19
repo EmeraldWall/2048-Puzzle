@@ -15,5 +15,8 @@ public static class AppServices
     /// <summary>Replaced with the Android implementation at startup.</summary>
     public static ISoundService Sound { get; set; } = new NoSoundService();
 
+    /// <summary>Replaced with the Play Games implementation at startup.</summary>
+    public static IGameAccountService Account { get; set; } = new NoGameAccountService();
+
     public static string StoreUrl => string.Format(AppConstants.StoreUrlFormat, AppInfo.Current.PackageName);
 }

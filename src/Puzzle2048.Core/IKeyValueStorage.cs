@@ -11,6 +11,7 @@ public interface IKeyValueStorage
     void SetBool(string key, bool value);
     string GetString(string key, string defaultValue);
     void SetString(string key, string value);
+    void Remove(string key);
 }
 
 public sealed class MemoryStorage : IKeyValueStorage
@@ -25,6 +26,7 @@ public sealed class MemoryStorage : IKeyValueStorage
     public void SetBool(string key, bool value) => _values[key] = value;
     public string GetString(string key, string defaultValue) => Get(key, defaultValue);
     public void SetString(string key, string value) => _values[key] = value;
+    public void Remove(string key) => _values.Remove(key);
 
     private T Get<T>(string key, T defaultValue) => _values.TryGetValue(key, out object? v) && v is T typed ? typed : defaultValue;
 }

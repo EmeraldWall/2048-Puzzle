@@ -21,6 +21,7 @@ _These images are drawn by the game's own scene renderer (`tools/Puzzle2048.Prev
 - **Game feel**: candy style tiles, bouncy slides and pops, particle bursts, floating points, praise words for combos and big tiles, confetti, screen shake, a level-up celebration and an animated backdrop
 - **Sound**: bubble pops that rise in pitch with the tile value, plus jingles for combos, wins and level-ups. Can be switched off in Settings
 - **Daily reminder**: optional, one evening notification, only if the daily challenge has not been played yet
+- **Account**: optional Google Play Games sign-in with a cloud save of the level, streaks, records and stars, six leaderboards and ten achievements. "Delete my data" in Settings wipes the progress from the phone and the cloud. The game works fully without signing in
 - **Ads and purchase**: Google AdMob banner at the bottom of every screen, removed by a one-time Google Play purchase (`remove_ads`)
 - English only, portrait, Android 7.0 (API 24) and newer, 64-bit devices
 
@@ -77,7 +78,27 @@ The files appear in `src\Puzzle2048.App\bin\Release\net10.0-android\publish\`:
 3. **AdMob**: the release build uses the live ids in `AppConstants.cs` (`AdConfig`). After the app is live, link it to its Play listing in AdMob. Do not tap live ads yourself.
 4. **Play Console**: create a one-time in-app product with id `remove_ads`. Purchases only work in a build installed from Google Play, for example from an internal test track.
 5. **Children**: every ad request is tagged child-directed with a G rating, so ads are non-personalized and there is no consent form. Make the target audience, ads and advertising ID answers in Play Console match. The Google ads library adds the `AD_ID` permission to the manifest, so review that answer carefully.
-6. **Privacy policy**: publish one that mentions AdMob and the purchase.
+6. **Privacy policy**: publish one that mentions AdMob, the purchase and Google Play Games (sign-in, cloud save, leaderboards and achievements).
+7. **Play Games account** (optional, see below). Until it is set up, every account feature stays hidden.
+
+## Set up the Play Games account
+
+The sign-in, cloud save, leaderboards and achievements need a Play Games Services project. Without one the game simply hides them.
+
+1. In Play Console open your app, then **Grow users** (or **Grow**) **> Play Games Services > Setup and management > Configuration**, and create a Play Games Services project. Google's guide: [Set up Google Play Games Services](https://developer.android.com/games/pgs/console/setup).
+2. Add **credentials** for Android. Use the SHA-1 fingerprint of your **app signing key** (Play Console > Test and release > App integrity) and, for builds you install yourself, of your upload key: `keytool -list -v -keystore puzzle2048.keystore -alias puzzle2048`.
+3. Turn on **Saved Games** in the project's properties (**Edit properties** on the Configuration page).
+4. Create these **leaderboards**. Higher is better for all of them except Sprint:
+   - Level points, Classic 4x4, Classic 5x5, Classic 6x6, Time Attack
+   - Sprint: a time leaderboard, smaller is better
+5. Create these **achievements**:
+   - Tiles: make a 256, 512, 1024, 2048 and 4096 tile
+   - Streaks: daily streak of 3, 7 and 30 days
+   - Levels: reach level 10 and level 25
+6. Paste every id into `src/Puzzle2048.App/Platforms/Android/Resources/values/playgames.xml`. The project id comes from the Configuration page. Leaderboards and Achievements each have a **Get resources** button that lists their ids. An id you leave empty is skipped.
+7. Add your Google account as a **tester** under Play Games Services until you publish the project, then publish it from the same page.
+
+Children whose Google account is supervised with Family Link need a parent's approval for a Play Games profile. Without one they still play normally, just without the account features.
 
 ## Project layout
 

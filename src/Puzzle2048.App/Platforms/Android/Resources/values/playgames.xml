@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Google Play Games Services ids. While game_services_project_id is empty, sign-in, cloud save,
+  leaderboards and achievements stay hidden and the game works exactly as before.
+
+  Play Console > Play Games Services > Setup and management > Configuration shows the project id.
+  Leaderboards and Achievements each have a "Get resources" button that lists the other ids.
+  Paste each id between the tags. Any id left empty is simply skipped.
+-->
+<resources>
+    <string name="game_services_project_id" translatable="false"></string>
+
+    <!-- Leaderboards. Sprint is a time leaderboard in milliseconds where smaller is better. -->
+    <string name="leaderboard_level" translatable="false"></string>
+    <string name="leaderboard_classic_4" translatable="false"></string>
+    <string name="leaderboard_classic_5" translatable="false"></string>
+    <string name="leaderboard_classic_6" translatable="false"></string>
+    <string name="leaderboard_time_attack" translatable="false"></string>
+    <string name="leaderboard_sprint" translatable="false"></string>
+
+    <!-- Achievements -->
+    <string name="achievement_tile_256" translatable="false"></string>
+    <string name="achievement_tile_512" translatable="false"></string>
+    <string name="achievement_tile_1024" translatable="false"></string>
+    <string name="achievement_tile_2048" translatable="false"></string>
+    <string name="achievement_tile_4096" translatable="false"></string>
+    <string name="achievement_streak_3" translatable="false"></string>
+    <string name="achievement_streak_7" translatable="false"></string>
+    <string name="achievement_streak_30" translatable="false"></string>
+    <string name="achievement_level_10" translatable="false"></string>
+    <string name="achievement_level_25" translatable="false"></string>
+</resources>

@@ -26,6 +26,7 @@ public partial class MenuPage : ContentPage
         base.OnAppearing();
 
         AppServices.Billing.AdsRemovedChanged += RefreshStore;
+        AppServices.Account.Changed += Refresh;
         Refresh();
 
         // The backdrop drifts gently at 20 frames a second while the menu is visible
@@ -39,6 +40,7 @@ public partial class MenuPage : ContentPage
             _servicesStarted = true;
             AppServices.Reminders.RestoreIfEnabled();
             _ = AppServices.Sound.PreloadAsync();
+            _ = AppServices.Account.InitializeAsync();
             await AppServices.Billing.InitializeAsync();
         }
 
@@ -49,6 +51,7 @@ public partial class MenuPage : ContentPage
     {
         base.OnDisappearing();
         AppServices.Billing.AdsRemovedChanged -= RefreshStore;
+        AppServices.Account.Changed -= Refresh;
         _timer?.Stop();
         _timer = null;
     }
@@ -88,6 +91,22 @@ public partial class MenuPage : ContentPage
         SprintBest.Text = $"Best: {(sprintBest > 0 ? FormatTime(sprintBest) : "none")}";
 
         RefreshStore();
+        RefreshAccount();
+    }
+
+    private void RefreshAccount()
+    {
+        IGameAccountService account = AppServices.Account;
+        bool signedIn = account.IsAvailable && account.IsSignedIn;
+        string name = account.PlayerName is { Length: > 0 } n ? n : "Player";
+
+        SignInButton.IsVisible = account.IsAvailable && !signedIn;
+        RanksButton.IsVisible = signedIn;
+        BadgesButton.IsVisible = signedIn;
+        Avatar.IsVisible = signedIn;
+        PlayerLabel.IsVisible = signedIn;
+        AvatarLetter.Text = char.ToUpperInvariant(name[0]).ToString();
+        PlayerLabel.Text = account.IsSyncing ? $"{name}  \u2022  saving..." : name;
     }
 
     private void ApplyLevelFill()
@@ -139,6 +158,21 @@ public partial class MenuPage : ContentPage
     }
 
     protected override bool OnBackButtonPressed() => Dialog.HandleBack() || base.OnBackButtonPressed();
+
+    private async void OnSignInClicked(object? sender, EventArgs e)
+    {
+        if (await AppServices.Account.SignInAsync())
+            await Dialog.ShowAsync($"Hi, {AppServices.Account.PlayerName}!",
+                "Your progress is now saved to Google Play Games, so it follows you to a new phone. Climb the leaderboards and collect achievements!",
+                "Let's play", tone: DialogTone.Gold);
+        else
+            await Dialog.ShowAsync("Not signed in", "Google Play Games could not sign you in. You can keep playing and try again later.",
+                "OK", tone: DialogTone.Blue);
+    }
+
+    private async void OnRanksClicked(object? sender, EventArgs e) => await AppServices.Account.ShowLeaderboardsAsync();
+
+    private async void OnBadgesClicked(object? sender, EventArgs e) => await AppServices.Account.ShowAchievementsAsync();
 
     private async void OnSettingsClicked(object? sender, EventArgs e) => await Navigation.PushAsync(new SettingsPage());
 

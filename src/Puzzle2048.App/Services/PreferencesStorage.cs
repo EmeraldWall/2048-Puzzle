@@ -13,4 +13,5 @@ public sealed class PreferencesStorage : IKeyValueStorage
     public void SetBool(string key, bool value) => Preferences.Default.Set(key, value);
     public string GetString(string key, string defaultValue) => Preferences.Default.Get(key, defaultValue);
     public void SetString(string key, string value) => Preferences.Default.Set(key, value);
+    public void Remove(string key) => Preferences.Default.Remove(key);
 }

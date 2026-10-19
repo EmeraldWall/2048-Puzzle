@@ -206,3 +206,109 @@ public class StarTests
         Assert.False(progress.SoundEnabled);
     }
 }
+
+public class CloudProgressTests
+{
+    private static ProgressStore NewStore() => new(new MemoryStorage());
+
+    [Fact]
+    public void ExportThenMergeIntoAnEmptyPhoneRestoresEverything()
+    {
+        var phone = NewStore();
+        phone.AddPoints(12_345);
+        phone.RecordHighScore(GameMode.Classic, 5, 9_000);
+        phone.RecordSprintTime(41_000);
+        phone.RecordDailyRun(100, 2_000, goalMet: true, moves: 30);
+        phone.RecordDailyStars(100, 2);
+
+        var other = NewStore();
+        Assert.True(other.MergeCloud(phone.ExportCloud()));
+
+        Assert.Equal(phone.TotalPoints, other.TotalPoints);
+        Assert.Equal(9_000, other.HighScore(GameMode.Classic, 5));
+        Assert.Equal(41_000, other.SprintBestMs);
+        Assert.Equal(1, other.CurrentStreak(100));
+        Assert.Equal(2_000, other.DailyBestScore(100));
+        Assert.True(other.IsGoalMet(100));
+        Assert.Equal(2, other.DailyStars(100));
+        Assert.Equal(1, other.DailyGoalsMet);
+    }
+
+    [Fact]
+    public void MergeKeepsTheBetterRecordFromEachSide()
+    {
+        var local = NewStore();
+        local.AddPoints(5_000);
+        local.RecordHighScore(GameMode.Classic, 4, 20_000);
+        local.RecordSprintTime(60_000);
+
+        var cloud = NewStore();
+        cloud.AddPoints(8_000);
+        cloud.RecordHighScore(GameMode.Classic, 4, 10_000);
+        cloud.RecordHighScore(GameMode.TimeAttack, 4, 3_000);
+        cloud.RecordSprintTime(45_000);
+
+        local.MergeCloud(cloud.ExportCloud());
+
+        Assert.Equal(8_000, local.TotalPoints);
+        Assert.Equal(20_000, local.HighScore(GameMode.Classic, 4));
+        Assert.Equal(3_000, local.HighScore(GameMode.TimeAttack, 4));
+        Assert.Equal(45_000, local.SprintBestMs);
+    }
+
+    [Fact]
+    public void TheMoreRecentStreakWins()
+    {
+        var local = NewStore();
+        for (int day = 10; day < 15; day++)
+            local.RecordDailyRun(day, 100, goalMet: false, moves: 20);
+
+        var cloud = NewStore();
+        for (int day = 15; day < 17; day++)
+            cloud.RecordDailyRun(day, 100, goalMet: false, moves: 20);
+
+        local.MergeCloud(cloud.ExportCloud());
+
+        Assert.Equal(2, local.CurrentStreak(16));
+        Assert.Equal(5, local.BestStreak);
+        Assert.True(local.HasPlayedDaily(16));
+    }
+
+    [Fact]
+    public void BrokenCloudDataChangesNothing()
+    {
+        var local = NewStore();
+        local.AddPoints(700);
+
+        Assert.False(local.MergeCloud("not json"));
+        Assert.False(local.MergeCloud(""));
+        Assert.False(local.MergeCloud(null));
+        Assert.Equal(700, local.TotalPoints);
+    }
+
+    [Fact]
+    public void ResetWipesProgressButKeepsPurchaseAndSettings()
+    {
+        var store = NewStore();
+        store.AddPoints(9_999);
+        store.RecordHighScore(GameMode.Classic, 4, 1_234);
+        store.RecordDailyRun(50, 500, goalMet: true, moves: 40);
+        store.SaveClassicGame(4, "{}");
+        store.AdsRemoved = true;
+        store.SoundEnabled = false;
+        store.BackgroundColor = "#FFC1DE";
+
+        store.ResetProgress();
+
+        Assert.Equal(0, store.TotalPoints);
+        Assert.Equal(0, store.HighScore(GameMode.Classic, 4));
+        Assert.Equal(0, store.CurrentStreak(50));
+        Assert.Equal(0, store.DailyGoalsMet);
+        Assert.False(store.EverPlayedDaily);
+        Assert.Null(store.LoadClassicGame(4));
+        Assert.Equal(-1, store.SprintBestMs);
+        Assert.True(store.AdsRemoved);
+        Assert.False(store.SoundEnabled);
+        Assert.Equal("#FFC1DE", store.BackgroundColor);
+    }
+}

@@ -215,6 +215,8 @@ public partial class GamePage : ContentPage
         UpdateHud();
         _scene.OnMove(result);
         PlayMoveSounds(result);
+        if (result.Outcome.BiggestMerge >= GameSession.MilestoneTile)
+            AppServices.Account.ReportTile(result.Outcome.BiggestMerge);
 
         if (levelAfter > levelBefore)
             CelebrateLevel(levelAfter);
@@ -565,13 +567,18 @@ public partial class GamePage : ContentPage
     private void SaveProgress()
     {
         _progress.RecordHighScore(_mode, _session.Size, _session.Score);
-        if (_mode == GameMode.Sprint && _session.State == RunState.Won)
+        bool sprintDone = _mode == GameMode.Sprint && _session.State == RunState.Won;
+        if (sprintDone)
             _progress.RecordSprintTime((long)_session.Elapsed.TotalMilliseconds);
 
         if (_mode.IsClassic())
             SaveClassic();
         else if (_mode == GameMode.Daily)
             SaveDaily();
+
+        if (_session.Moves > 0)
+            AppServices.Account.ReportRun(_mode, _session.Size, _session.Score,
+                sprintDone ? (long)_session.Elapsed.TotalMilliseconds : null);
     }
 
     private async Task ShareAsync()

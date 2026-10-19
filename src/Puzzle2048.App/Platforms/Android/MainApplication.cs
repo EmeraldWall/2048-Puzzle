@@ -11,5 +11,11 @@ public class MainApplication : MauiApplication
     {
     }
 
+    public override void OnCreate()
+    {
+        base.OnCreate();
+        Platforms.Android.AndroidPlayGamesService.InitializeSdk(this);
+    }
+
     protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
 }

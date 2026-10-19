@@ -115,14 +115,18 @@ public sealed class DialogHost : Grid
 
     /// <summary>Shows the dialog and returns true for the accept button, false for cancel or back.</summary>
     /// <param name="longText">Smaller, left-aligned and scrollable, for text such as licences.</param>
+    /// <param name="danger">Makes the accept button red, for actions that cannot be undone.</param>
     public async Task<bool> ShowAsync(string title, string message, string accept = "OK", string? cancel = null,
-        DialogTone tone = DialogTone.Pink, bool longText = false)
+        DialogTone tone = DialogTone.Pink, bool longText = false, bool danger = false)
     {
         _pending?.TrySetResult(false);
         var pending = new TaskCompletionSource<bool>();
         _pending = pending;
 
         ApplyTone(tone);
+        _accept.FaceTop = Color.FromArgb(danger ? "#FF8A8A" : "#8BE87F");
+        _accept.FaceBottom = Color.FromArgb(danger ? "#F24B4B" : "#36C25A");
+        _accept.LipColor = Color.FromArgb(danger ? "#B82E2E" : "#21934A");
         _ribbon.Text = title;
         _accept.Text = accept;
         _cancel.Text = cancel;

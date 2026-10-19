@@ -14,13 +14,49 @@
         <ScrollView>
             <VerticalStackLayout Padding="16,14,16,16" Spacing="12">
 
-                <!-- Level -->
-                <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="16,10,16,12">
+                <!-- Player and level -->
+                <Border BackgroundColor="#40FFFFFF" StrokeThickness="0" Padding="14,10,14,12">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="22" />
                     </Border.StrokeShape>
                     <VerticalStackLayout Spacing="6">
-                        <Label x:Name="LevelLabel" FontFamily="FredokaBold" FontSize="22" TextColor="White" />
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <Border x:Name="Avatar" WidthRequest="46" HeightRequest="46" Stroke="White" StrokeThickness="3"
+                                    VerticalOptions="Center" IsVisible="False">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="23" />
+                                </Border.StrokeShape>
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                                        <GradientStop Color="#FFB04D" Offset="0" />
+                                        <GradientStop Color="#FF4F9A" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Label x:Name="AvatarLetter" FontFamily="FredokaBold" FontSize="22" TextColor="White"
+                                       HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="0">
+                                <Label x:Name="PlayerLabel" FontFamily="FredokaBold" FontSize="15" TextColor="White"
+                                       LineBreakMode="TailTruncation" IsVisible="False" />
+                                <Label x:Name="LevelLabel" FontFamily="FredokaBold" FontSize="22" TextColor="White" />
+                            </VerticalStackLayout>
+                            <HorizontalStackLayout Grid.Column="2" Spacing="8" VerticalOptions="Center">
+                                <c:CandyButton x:Name="SignInButton" Text="Sign in" HeightRequest="46" WidthRequest="100"
+                                               CornerRadius="18" LipHeight="5" FontSize="17" IsVisible="False"
+                                               FaceTop="#8BE87F" FaceBottom="#36C25A" LipColor="#21934A" Clicked="OnSignInClicked"
+                                               SemanticProperties.Description="Sign in with Google Play Games" />
+                                <c:CandyButton x:Name="RanksButton" WidthRequest="46" HeightRequest="50" CornerRadius="23" LipHeight="5"
+                                               FaceTop="#FFEE7A" FaceBottom="#FFC21F" LipColor="#D49A00" IsVisible="False"
+                                               Clicked="OnRanksClicked" SemanticProperties.Description="Leaderboards">
+                                    <Image Source="ic_trophy.png" WidthRequest="26" HeightRequest="26" />
+                                </c:CandyButton>
+                                <c:CandyButton x:Name="BadgesButton" WidthRequest="46" HeightRequest="50" CornerRadius="23" LipHeight="5"
+                                               FaceTop="#BE94FF" FaceBottom="#8F5CF2" LipColor="#6034C2" IsVisible="False"
+                                               Clicked="OnBadgesClicked" SemanticProperties.Description="Achievements">
+                                    <Image Source="ic_medal.png" WidthRequest="26" HeightRequest="26" />
+                                </c:CandyButton>
+                            </HorizontalStackLayout>
+                        </Grid>
                         <Grid x:Name="LevelTrack" HeightRequest="14">
                             <Border BackgroundColor="#66FFFFFF" StrokeThickness="0">
                                 <Border.StrokeShape>

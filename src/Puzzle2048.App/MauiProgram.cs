@@ -20,6 +20,9 @@ public static class MauiProgram
 #if ANDROID
         Services.AppServices.Reminders = new Platforms.Android.AndroidReminderService();
         Services.AppServices.Sound = new Platforms.Android.AndroidSoundService();
+        Services.AppServices.Account = new Platforms.Android.AndroidPlayGamesService(Services.AppServices.Progress);
+        Services.AppServices.Frames = new Platforms.Android.ChoreographerTicker();
+        Platforms.Android.AndroidSprite.Install(global::Android.App.Application.Context.Resources?.DisplayMetrics?.Density ?? 1f);
 #endif
 
 #if DEBUG

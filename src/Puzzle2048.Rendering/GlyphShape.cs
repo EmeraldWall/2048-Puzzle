@@ -6,6 +6,7 @@ namespace Puzzle2048.Rendering;
 internal sealed class GlyphShape
 {
     private PathF? _path;
+    private RectF _bounds;
 
     public GlyphShape(int advance, string outline)
     {
@@ -17,11 +18,22 @@ internal sealed class GlyphShape
 
     public string Outline { get; }
 
-    public PathF Path => _path ??= Parse(Outline);
+    public PathF Path => _path ??= Parse(Outline, out _bounds);
 
-    private static PathF Parse(string outline)
+    /// <summary>Box around every point of the outline, in font units (y up). Covers the drawn shape.</summary>
+    public RectF Bounds
+    {
+        get
+        {
+            _ = Path;
+            return _bounds;
+        }
+    }
+
+    private static PathF Parse(string outline, out RectF bounds)
     {
         var path = new PathF();
+        float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
         int i = 0;
         while (i < outline.Length)
         {
@@ -35,7 +47,19 @@ internal sealed class GlyphShape
             int count = command switch { 'M' or 'L' => 2, 'Q' => 4, 'C' => 6, _ => throw new FormatException($"Unknown path command {command}") };
             var numbers = new float[count];
             for (int n = 0; n < count; n++)
+            {
                 numbers[n] = ReadNumber(outline, ref i);
+                if (n % 2 == 0)
+                {
+                    minX = MathF.Min(minX, numbers[n]);
+                    maxX = MathF.Max(maxX, numbers[n]);
+                }
+                else
+                {
+                    minY = MathF.Min(minY, numbers[n]);
+                    maxY = MathF.Max(maxY, numbers[n]);
+                }
+            }
 
             switch (command)
             {
@@ -45,6 +69,7 @@ internal sealed class GlyphShape
                 case 'C': path.CurveTo(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5]); break;
             }
         }
+        bounds = minX > maxX ? RectF.Zero : new RectF(minX, minY, maxX - minX, maxY - minY);
         return path;
     }
 

@@ -1,3 +1,4 @@
+using Puzzle2048.App.Controls;
 using Puzzle2048.App.Services;
 using Puzzle2048.Core;
 using Puzzle2048.Rendering;
@@ -25,6 +26,7 @@ public partial class MenuPage : ContentPage
         base.OnAppearing();
 
         AppServices.Billing.AdsRemovedChanged += RefreshStore;
+        AppServices.Account.Changed += Refresh;
         Refresh();
 
         // The backdrop drifts gently at 20 frames a second while the menu is visible
@@ -38,6 +40,7 @@ public partial class MenuPage : ContentPage
             _servicesStarted = true;
             AppServices.Reminders.RestoreIfEnabled();
             _ = AppServices.Sound.PreloadAsync();
+            _ = AppServices.Account.InitializeAsync();
             await AppServices.Billing.InitializeAsync();
         }
 
@@ -48,6 +51,7 @@ public partial class MenuPage : ContentPage
     {
         base.OnDisappearing();
         AppServices.Billing.AdsRemovedChanged -= RefreshStore;
+        AppServices.Account.Changed -= Refresh;
         _timer?.Stop();
         _timer = null;
     }
@@ -87,6 +91,22 @@ public partial class MenuPage : ContentPage
         SprintBest.Text = $"Best: {(sprintBest > 0 ? FormatTime(sprintBest) : "none")}";
 
         RefreshStore();
+        RefreshAccount();
+    }
+
+    private void RefreshAccount()
+    {
+        IGameAccountService account = AppServices.Account;
+        bool signedIn = account.IsAvailable && account.IsSignedIn;
+        string name = account.PlayerName is { Length: > 0 } n ? n : "Player";
+
+        SignInButton.IsVisible = account.IsAvailable && !signedIn;
+        RanksButton.IsVisible = signedIn;
+        BadgesButton.IsVisible = signedIn;
+        Avatar.IsVisible = signedIn;
+        PlayerLabel.IsVisible = signedIn;
+        AvatarLetter.Text = char.ToUpperInvariant(name[0]).ToString();
+        PlayerLabel.Text = account.IsSyncing ? $"{name}  \u2022  saving..." : name;
     }
 
     private void ApplyLevelFill()
@@ -131,10 +151,28 @@ public partial class MenuPage : ContentPage
     private async void OnRemoveAdsClicked(object? sender, EventArgs e)
     {
         if (await AppServices.Billing.BuyAsync())
-            await DisplayAlertAsync("Thank you!", "Ads have been removed.", "OK");
+            await Dialog.ShowAsync("Thank you!", "Ads have been removed. Enjoy the game!", "Yay!", tone: DialogTone.Gold);
         else if (AppServices.Billing.PurchasePending)
-            await DisplayAlertAsync("Almost there", "Your payment is pending. Ads will be removed as soon as Google Play confirms it.", "OK");
+            await Dialog.ShowAsync("Almost there", "Your payment is pending. Ads will be removed as soon as Google Play confirms it.",
+                "OK", tone: DialogTone.Blue);
     }
+
+    protected override bool OnBackButtonPressed() => Dialog.HandleBack() || base.OnBackButtonPressed();
+
+    private async void OnSignInClicked(object? sender, EventArgs e)
+    {
+        if (await AppServices.Account.SignInAsync())
+            await Dialog.ShowAsync($"Hi, {AppServices.Account.PlayerName}!",
+                "Your progress is now saved to Google Play Games, so it follows you to a new phone. Climb the leaderboards and collect achievements!",
+                "Let's play", tone: DialogTone.Gold);
+        else
+            await Dialog.ShowAsync("Not signed in", "Google Play Games could not sign you in. You can keep playing and try again later.",
+                "OK", tone: DialogTone.Blue);
+    }
+
+    private async void OnRanksClicked(object? sender, EventArgs e) => await AppServices.Account.ShowLeaderboardsAsync();
+
+    private async void OnBadgesClicked(object? sender, EventArgs e) => await AppServices.Account.ShowAchievementsAsync();
 
     private async void OnSettingsClicked(object? sender, EventArgs e) => await Navigation.PushAsync(new SettingsPage());
 
@@ -146,7 +184,7 @@ public partial class MenuPage : ContentPage
         }
         catch (Exception ex) when (ex is FeatureNotSupportedException or InvalidOperationException)
         {
-            await DisplayAlertAsync("Contact us", $"Please write to {AppConstants.SupportEmail}", "OK");
+            await Dialog.ShowAsync("Contact us", $"Please write to {AppConstants.SupportEmail}", "OK", tone: DialogTone.Blue);
         }
     }
 
@@ -176,9 +214,9 @@ public partial class MenuPage : ContentPage
             return;
 
         _progress.ReminderPrompted = true;
-        bool yes = await DisplayAlertAsync("Never miss a day",
+        bool yes = await Dialog.ShowAsync("Never miss a day",
             "Get one reminder each evening, only when you have not played today's challenge yet. You can turn it off any time in Settings.",
-            "Remind me", "No thanks");
+            "Remind me", "No thanks", DialogTone.Pink);
         if (yes)
             await AppServices.Reminders.EnableAsync();
     }

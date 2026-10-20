@@ -7,6 +7,10 @@ namespace Puzzle2048.Rendering;
 internal sealed record Burst(long Start, float CellX, float CellY, TileStyle Style, int Seed)
 {
     public const long Duration = 650;
+    private const int Pieces = 14;
+
+    // Each piece's direction, speed, size, shape and colour, drawn from the seed once instead of every frame
+    private (float Angle, float Speed, float Size, int Shape, Color Color)[]? _pieces;
 
     public bool Alive(long now) => now - Start < Duration;
 
@@ -17,37 +21,47 @@ internal sealed record Burst(long Start, float CellX, float CellY, TileStyle Sty
             return;
 
         float life = t * 1000f / Duration;
-        var random = new Random(Seed);
-        Color[] colors = [Style.Light, Style.Main, Colors.White, Style.Main];
-        for (int i = 0; i < 14; i++)
+        var pieces = _pieces ??= MakePieces();
+        for (int i = 0; i < pieces.Length; i++)
         {
-            float angle = (float)(random.NextDouble() * Math.PI * 2);
-            float speed = cell * (1.6f + (float)random.NextDouble() * 2.6f);
-            float size = cell * (0.05f + (float)random.NextDouble() * 0.07f);
-            int shape = random.Next(3);
-            Color color = colors[random.Next(colors.Length)];
-            float x = center.X + MathF.Cos(angle) * speed * t;
-            float y = center.Y + MathF.Sin(angle) * speed * t + 0.5f * cell * 9f * t * t;
+            var p = pieces[i];
+            float speed = cell * p.Speed;
+            float size = cell * p.Size;
+            float x = center.X + MathF.Cos(p.Angle) * speed * t;
+            float y = center.Y + MathF.Sin(p.Angle) * speed * t + 0.5f * cell * 9f * t * t;
             float alpha = 1f - life * life;
             float s = size * (1f - life * 0.5f);
 
-            switch (shape)
+            switch (p.Shape)
             {
                 case 0:
-                    canvas.FillColor = color.WithAlpha(alpha);
-                    canvas.FillCircle(x, y, s);
+                    Blob(canvas, new RectF(x - s, y - s, s * 2, s * 2), s, p.Color.WithAlpha(alpha));
                     break;
                 case 1:
-                    canvas.SaveState();
-                    canvas.Rotate(t * 540f + i * 40f, x, y);
-                    FillRounded(canvas, new RectF(x - s, y - s, s * 2, s * 2), s * 0.4f, color.WithAlpha(alpha));
-                    canvas.RestoreState();
+                    Blob(canvas, new RectF(x - s, y - s, s * 2, s * 2), s * 0.4f, p.Color.WithAlpha(alpha), t * 540f + i * 40f);
                     break;
                 default:
                     Sparkle(canvas, x, y, s * 1.8f, Colors.White.WithAlpha(alpha));
                     break;
             }
         }
+    }
+
+    private (float, float, float, int, Color)[] MakePieces()
+    {
+        var random = new Random(Seed);
+        Color[] colors = [Style.Light, Style.Main, Colors.White, Style.Main];
+        var pieces = new (float, float, float, int, Color)[Pieces];
+        for (int i = 0; i < Pieces; i++)
+        {
+            float angle = (float)(random.NextDouble() * Math.PI * 2);
+            float speed = 1.6f + (float)random.NextDouble() * 2.6f;
+            float size = 0.05f + (float)random.NextDouble() * 0.07f;
+            int shape = random.Next(3);
+            Color color = colors[random.Next(colors.Length)];
+            pieces[i] = (angle, speed, size, shape, color);
+        }
+        return pieces;
     }
 }
 
@@ -68,7 +82,7 @@ internal sealed record FloatingText(long Start, string Text, float CellX, float 
         float alpha = life < 0.6f ? 1f : 1f - (life - 0.6f) / 0.4f;
         float size = cell * 0.22f * (0.8f + 0.2f * EaseOutBack(MathF.Min(1f, life * 4f)));
         GlyphFont.DrawStyled(canvas, Text, center.X, center.Y - cell * 0.35f - rise, size,
-            Colors.White.WithAlpha(alpha), Color.FromArgb("#FFF2B3").WithAlpha(alpha),
+            Colors.White.WithAlpha(alpha), Hex("#FFF2B3").WithAlpha(alpha),
             Darken(Style.Edge, 0.3f).WithAlpha(alpha), size * 0.14f, null);
     }
 }
@@ -87,19 +101,27 @@ internal sealed record Praise(long Start, string Word, string? Sub, Color Top, C
             return;
 
         float pop = EaseOutBack(MathF.Min(1f, life * 5f));
+        if (pop < 0.02f)
+            return;
         float alpha = life < 0.75f ? 1f : 1f - (life - 0.75f) / 0.25f;
         float lift = life > 0.75f ? (life - 0.75f) * width * 0.12f : 0f;
 
-        float size = GlyphFont.Fit(Word, width * 0.13f, width * 0.86f) * pop;
-        GlyphFont.DrawStyled(canvas, Word, cx, cy - lift, size,
+        // Drawn at full size and zoomed as a whole, so the letters stay the same cached pictures while it pops in
+        canvas.SaveState();
+        canvas.Translate(cx, cy - lift);
+        canvas.Scale(pop, pop);
+
+        float size = GlyphFont.Fit(Word, width * 0.13f, width * 0.86f);
+        GlyphFont.DrawStyled(canvas, Word, 0, 0, size,
             Top.WithAlpha(alpha), Bottom.WithAlpha(alpha), Outline.WithAlpha(alpha), size * 0.12f, Colors.Black.WithAlpha(0.25f * alpha));
 
         if (Sub is not null)
         {
-            float subSize = GlyphFont.Fit(Sub, width * 0.045f, width * 0.8f) * pop;
-            GlyphFont.DrawStyled(canvas, Sub, cx, cy + size * 0.95f - lift, subSize,
+            float subSize = GlyphFont.Fit(Sub, width * 0.045f, width * 0.8f);
+            GlyphFont.DrawStyled(canvas, Sub, 0, size * 0.95f, subSize,
                 Colors.White.WithAlpha(alpha), Colors.White.WithAlpha(alpha), Outline.WithAlpha(alpha), subSize * 0.16f, null);
         }
+        canvas.RestoreState();
     }
 }
 
@@ -108,9 +130,12 @@ internal sealed record Confetti(long Start, long Duration, bool Loop)
 {
     private static readonly Color[] Colors_ =
     [
-        Color.FromArgb("#FF5C9A"), Color.FromArgb("#FFC400"), Color.FromArgb("#3DA0FF"),
-        Color.FromArgb("#43C455"), Color.FromArgb("#A260FF"), Color.FromArgb("#FF8F3D"), Colors.White,
+        Hex("#FF5C9A"), Hex("#FFC400"), Hex("#3DA0FF"),
+        Hex("#43C455"), Hex("#A260FF"), Hex("#FF8F3D"), Colors.White,
     ];
+
+    // Where each piece starts, how it falls and its colour, drawn from a fixed seed once
+    private static readonly (float X, float Speed, float Delay, float Sway, float Spin, float Width, Color Color)[] Pieces = MakePieces();
 
     public bool Alive(long now) => Loop || now - Start < Duration;
 
@@ -121,20 +146,17 @@ internal sealed record Confetti(long Start, long Duration, bool Loop)
             return;
 
         float fade = Loop ? 1f : Clamp01((Duration - (now - Start)) / 500f);
-        var random = new Random(77);
         float u = area.Width / 100f;
-        for (int i = 0; i < 90; i++)
+        for (int i = 0; i < Pieces.Length; i++)
         {
-            float x0 = area.X + (float)random.NextDouble() * area.Width;
-            float speed = area.Height * (0.18f + (float)random.NextDouble() * 0.22f);
-            float delay = (float)random.NextDouble() * 1.2f;
-            float sway = u * (1.5f + (float)random.NextDouble() * 3f);
-            float spin = 180f + (float)random.NextDouble() * 360f;
-            float w = u * (1.0f + (float)random.NextDouble() * 1.2f);
+            var p = Pieces[i];
+            float x0 = area.X + p.X * area.Width;
+            float speed = area.Height * p.Speed;
+            float sway = u * p.Sway;
+            float w = u * p.Width;
             float h = w * 0.5f;
-            Color color = Colors_[random.Next(Colors_.Length)];
 
-            float local = t - delay;
+            float local = t - p.Delay;
             if (local < 0)
                 continue;
             float travel = area.Height + u * 10f;
@@ -145,10 +167,25 @@ internal sealed record Confetti(long Start, long Duration, bool Loop)
                 continue;
 
             float x = x0 + MathF.Sin(local * 2.2f + i) * sway;
-            canvas.SaveState();
-            canvas.Rotate(local * spin + i * 23f, x, y);
-            FillRounded(canvas, new RectF(x - w / 2f, y - h / 2f, w, h), h * 0.3f, color.WithAlpha(0.95f * fade));
-            canvas.RestoreState();
+            Blob(canvas, new RectF(x - w / 2f, y - h / 2f, w, h), h * 0.3f, p.Color.WithAlpha(0.95f * fade), local * p.Spin + i * 23f);
         }
+    }
+
+    private static (float, float, float, float, float, float, Color)[] MakePieces()
+    {
+        var random = new Random(77);
+        var pieces = new (float, float, float, float, float, float, Color)[90];
+        for (int i = 0; i < pieces.Length; i++)
+        {
+            float x = (float)random.NextDouble();
+            float speed = 0.18f + (float)random.NextDouble() * 0.22f;
+            float delay = (float)random.NextDouble() * 1.2f;
+            float sway = 1.5f + (float)random.NextDouble() * 3f;
+            float spin = 180f + (float)random.NextDouble() * 360f;
+            float w = 1.0f + (float)random.NextDouble() * 1.2f;
+            Color color = Colors_[random.Next(Colors_.Length)];
+            pieces[i] = (x, speed, delay, sway, spin, w, color);
+        }
+        return pieces;
     }
 }

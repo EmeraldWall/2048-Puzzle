@@ -24,6 +24,7 @@ public sealed class GameScene : IDrawable
     private (long Start, float Amplitude) _shake = (-1_000_000, 0);
     private (string Text, long Start)? _toast;
     private SceneAction _pressed;
+    private SceneAction _held;
     private long _pressStart = -1_000_000;
     private double _shownScore = -1;
     private long _lastFrame;
@@ -47,7 +48,7 @@ public sealed class GameScene : IDrawable
 
     public ResultCard? Result { get; private set; }
 
-    public Color BackgroundColor { get; set; } = Color.FromArgb("#7FD3FF");
+    public Color BackgroundColor { get; set; } = Hex("#7FD3FF");
 
     public Func<long> Clock { get; set; } = () => Environment.TickCount64;
 
@@ -59,7 +60,7 @@ public sealed class GameScene : IDrawable
             long now = Clock();
             return Board.IsAnimating
                 || _bursts.Count > 0 || _floaters.Count > 0 || _praises.Count > 0
-                || _confetti is not null || now - _shake.Start < 300 || now - _pressStart < 200
+                || _confetti is not null || now - _shake.Start < 300 || now - _pressStart < 200 || _held != SceneAction.None
                 || (_toast is { } t && now - t.Start < 1600)
                 || (Session is not null && Math.Abs(_shownScore - Hud.Score) > 0.5)
                 || (Result is not null && now - _resultStart < 1500);
@@ -153,6 +154,20 @@ public sealed class GameScene : IDrawable
         _pressStart = Clock();
     }
 
+    /// <summary>Keeps a button sunk while the finger rests on it.</summary>
+    public void Hold(SceneAction action) => _held = action;
+
+    /// <summary>The finger lifted: the held button springs back up over a moment.</summary>
+    public void Release()
+    {
+        if (_held != SceneAction.None)
+            Press(_held);
+        _held = SceneAction.None;
+    }
+
+    /// <summary>The finger slid away or the touch was cancelled: the button pops straight back.</summary>
+    public void CancelHold() => _held = SceneAction.None;
+
     public static string PraiseWord(int combo) => combo switch
     {
         <= 2 => "NICE!",
@@ -182,11 +197,10 @@ public sealed class GameScene : IDrawable
 
         // Board and its effects shake together on big merges
         PointF shake = ShakeOffset(now, layout.U);
-        canvas.SaveState();
         canvas.Translate(shake.X, shake.Y);
         Board.DrawBoard(canvas, layout.Board);
         DrawBoardEffects(canvas, layout, now);
-        canvas.RestoreState();
+        canvas.Translate(-shake.X, -shake.Y);
 
         DrawBottom(canvas, layout, now);
 
@@ -205,9 +219,9 @@ public sealed class GameScene : IDrawable
     private void DrawTopBar(ICanvas canvas, Layout l, long now)
     {
         RoundButton(canvas, l.BackButton, SceneAction.Back, IconKind.Back,
-            Color.FromArgb("#FF8CC4"), Color.FromArgb("#FF4F9A"), Color.FromArgb("#C42872"), true, now);
+            Hex("#FF8CC4"), Hex("#FF4F9A"), Hex("#C42872"), true, now);
         RoundButton(canvas, l.RestartButton, SceneAction.Restart, IconKind.Restart,
-            Color.FromArgb("#FFB04D"), Color.FromArgb("#FF8A3D"), Color.FromArgb("#C8581A"), true, now);
+            Hex("#FFB04D"), Hex("#FF8A3D"), Hex("#C8581A"), true, now);
 
         DrawLogo(canvas, l.Logo, now);
 
@@ -223,10 +237,13 @@ public sealed class GameScene : IDrawable
     }
 
     /// <summary>The game's logo: four candy tiles spelling 2048, gently bobbing.</summary>
+    private static readonly (string Digit, int Value)[] LogoTiles = [("2", 8), ("0", 32), ("4", 512), ("8", 2048)];
+    private static readonly float[] LogoTilt = [-7f, 5f, -4f, 7f];
+
     private static void DrawLogo(ICanvas canvas, RectF area, long now)
     {
-        (string Digit, int Value)[] tiles = [("2", 8), ("0", 32), ("4", 512), ("8", 2048)];
-        float[] tilt = [-7f, 5f, -4f, 7f];
+        var tiles = LogoTiles;
+        float[] tilt = LogoTilt;
         float tile = area.Height * 0.86f;
         float gap = area.Height * 0.12f;
         float total = tile * 4 + gap * 3;
@@ -236,13 +253,13 @@ public sealed class GameScene : IDrawable
             float bob = MathF.Sin(now * 0.0025f + i * 0.9f) * area.Height * 0.04f;
             var rect = new RectF(x, area.Center.Y - tile / 2f + bob, tile, tile);
             TileStyle style = Palette.ForValue(tiles[i].Value);
-            canvas.SaveState();
+            // Turned and turned back rather than saving the canvas state, which allocates on Android
             canvas.Rotate(tilt[i], rect.Center.X, rect.Center.Y);
             RectF face = CandyPanel(canvas, rect, tile * 0.24f, style.Light, style.Main, style.Edge, lipRatio: 0.1f);
             float size = face.Height * 0.52f;
             GlyphFont.DrawStyled(canvas, tiles[i].Digit, face.Center.X, face.Center.Y, size,
-                Colors.White, Color.FromArgb("#FFF2D6"), Darken(style.Edge, 0.35f), size * 0.12f, ShadowText);
-            canvas.RestoreState();
+                Colors.White, Hex("#FFF2D6"), Darken(style.Edge, 0.35f), size * 0.12f, ShadowText);
+            canvas.Rotate(-tilt[i], rect.Center.X, rect.Center.Y);
             x += tile + gap;
         }
     }
@@ -251,22 +268,22 @@ public sealed class GameScene : IDrawable
     {
         float bump = 1f + 0.06f * MathF.Sin(MathF.PI * Clamp01((now - _scoreBumpStart) / 260f));
         Panel(canvas, l.ScorePanel, "SCORE", FormatNumber((long)Math.Round(_shownScore < 0 ? Hud.Score : _shownScore)),
-            Color.FromArgb("#FFB36B"), Color.FromArgb("#FF7A3D"), Color.FromArgb("#D4541A"), bump, l.U);
+            Hex("#FFB36B"), Hex("#FF7A3D"), Hex("#D4541A"), bump, l.U);
 
         bool record = Hud.Score > 0 && Hud.Score >= Hud.Best;
         Panel(canvas, l.BestPanel, record ? "NEW BEST" : "BEST", FormatNumber(Math.Max(Hud.Best, Hud.Score)),
-            Color.FromArgb("#C29BFF"), Color.FromArgb("#8E5CF0"), Color.FromArgb("#6535C4"), 1f, l.U);
+            Hex("#C29BFF"), Hex("#8E5CF0"), Hex("#6535C4"), 1f, l.U);
     }
 
     private static void Panel(ICanvas canvas, RectF rect, string label, string value, Color light, Color main, Color edge, float scale, float u)
     {
-        RectF scaled = Scale(rect, scale);
-        RectF face = CandyPanel(canvas, scaled, u * 3.2f, light, main, edge, lipRatio: 0.1f);
+        // The bump zooms the cached panel instead of drawing a new one each frame
+        RectF face = CandyPanel(canvas, rect, u * 3.2f, light, main, edge, lipRatio: 0.1f, zoom: scale);
         GlyphFont.DrawStyled(canvas, label, face.Center.X, face.Y + face.Height * 0.27f, u * 2.5f,
             Colors.White.WithAlpha(0.9f), Colors.White.WithAlpha(0.9f), null, 0, null);
         float size = GlyphFont.Fit(value, u * 5.6f, face.Width - u * 5f);
         GlyphFont.DrawStyled(canvas, value, face.Center.X, face.Y + face.Height * 0.64f, size,
-            Colors.White, Color.FromArgb("#FFF2D6"), Darken(edge, 0.3f), size * 0.1f, ShadowText);
+            Colors.White, Hex("#FFF2D6"), Darken(edge, 0.3f), size * 0.1f, ShadowText);
     }
 
     private void DrawStrip(ICanvas canvas, RectF strip, long now)
@@ -282,18 +299,18 @@ public sealed class GameScene : IDrawable
             if (Hud.StripUrgent)
             {
                 float pulse = 0.5f + 0.5f * MathF.Sin(now * 0.012f);
-                light = Mix(Color.FromArgb("#FF8A80"), Color.FromArgb("#FFC1B8"), pulse);
-                main = Color.FromArgb("#E53935");
+                light = Mix(Hex("#FF8A80"), Hex("#FFC1B8"), pulse);
+                main = Hex("#E53935");
             }
             else if (Hud.StripDone)
             {
-                light = Color.FromArgb("#9BEF7A");
-                main = Color.FromArgb("#2FB344");
+                light = Hex("#9BEF7A");
+                main = Hex("#2FB344");
             }
             else
             {
-                light = Color.FromArgb("#7FE7FF");
-                main = Color.FromArgb("#2E9BFF");
+                light = Hex("#7FE7FF");
+                main = Hex("#2E9BFF");
             }
             FillGradient(canvas, fill, fill.Height / 2f, light, main);
             var gloss = new RectF(fill.X + fill.Height * 0.3f, fill.Y + fill.Height * 0.12f, MathF.Max(0, fill.Width - fill.Height * 0.6f), fill.Height * 0.32f);
@@ -323,9 +340,9 @@ public sealed class GameScene : IDrawable
         if (Hud.ShowPowerUps)
         {
             RoundButton(canvas, l.UndoButton, SceneAction.Undo, IconKind.Undo,
-                Color.FromArgb("#6FE0FF"), Color.FromArgb("#2EB4F2"), Color.FromArgb("#1388C2"), Hud.CanUndo, now);
+                Hex("#6FE0FF"), Hex("#2EB4F2"), Hex("#1388C2"), Hud.CanUndo, now);
             RoundButton(canvas, l.TrashButton, SceneAction.Trash, IconKind.Trash,
-                Color.FromArgb("#9BEF7A"), Color.FromArgb("#43C455"), Color.FromArgb("#2A912F"), Hud.CanTrash, now);
+                Hex("#9BEF7A"), Hex("#43C455"), Hex("#2A912F"), Hud.CanTrash, now);
 
             float labelY = l.UndoButton.Bottom + l.U * 2.6f;
             GlyphFont.DrawStyled(canvas, "UNDO", l.UndoButton.Center.X, labelY, l.U * 2.6f,
@@ -336,9 +353,9 @@ public sealed class GameScene : IDrawable
             // Charges badge on the power-up
             float r = l.U * 3f;
             var badge = new PointF(l.TrashButton.Right - r * 0.5f, l.TrashButton.Y + r * 0.5f);
-            canvas.FillColor = Darken(Color.FromArgb("#E53935"), 0.25f);
+            canvas.FillColor = Darken(Hex("#E53935"), 0.25f);
             canvas.FillCircle(badge.X, badge.Y + l.U * 0.4f, r);
-            canvas.FillColor = Color.FromArgb("#FF5252");
+            canvas.FillColor = Hex("#FF5252");
             canvas.FillCircle(badge, r);
             GlyphFont.DrawCentered(canvas, Hud.TrashCharges.ToString(System.Globalization.CultureInfo.InvariantCulture), badge.X, badge.Y, r * 0.9f, Colors.White);
         }
@@ -378,7 +395,7 @@ public sealed class GameScene : IDrawable
 
         // Everything behind the card is dimmed and no longer clickable
         _hits.Clear();
-        canvas.FillColor = Color.FromArgb("#1B1446").WithAlpha(0.62f * appear);
+        canvas.FillColor = Hex("#1B1446").WithAlpha(0.62f * appear);
         canvas.FillRectangle(rect);
 
         float cardWidth = MathF.Min(rect.Width - u * 10f, u * 88f);
@@ -397,19 +414,19 @@ public sealed class GameScene : IDrawable
         // Card body
         canvas.SaveState();
         canvas.SetShadow(new SizeF(0, u * 1.6f), u * 4f, Colors.Black.WithAlpha(0.4f));
-        FillRounded(canvas, new RectF(cardRect.X, cardRect.Y + u * 1.2f, cardRect.Width, cardRect.Height), u * 7f, Color.FromArgb("#C9B8F5"));
+        FillRounded(canvas, new RectF(cardRect.X, cardRect.Y + u * 1.2f, cardRect.Width, cardRect.Height), u * 7f, Hex("#C9B8F5"));
         canvas.RestoreState();
-        FillGradient(canvas, cardRect, u * 7f, Colors.White, Color.FromArgb("#F2ECFF"));
+        FillGradient(canvas, cardRect, u * 7f, Colors.White, Hex("#F2ECFF"));
 
         // Ribbon with the title
         var ribbon = new RectF(cardRect.X - u * 3f, cardRect.Y - u * 4f, cardRect.Width + u * 6f, u * 15f);
-        Color ribbonLight = card.Celebrate ? Color.FromArgb("#FFE45C") : Color.FromArgb("#FF8CC4");
-        Color ribbonMain = card.Celebrate ? Color.FromArgb("#FFB300") : Color.FromArgb("#FF4F9A");
-        Color ribbonEdge = card.Celebrate ? Color.FromArgb("#C77C00") : Color.FromArgb("#C42872");
+        Color ribbonLight = card.Celebrate ? Hex("#FFE45C") : Hex("#FF8CC4");
+        Color ribbonMain = card.Celebrate ? Hex("#FFB300") : Hex("#FF4F9A");
+        Color ribbonEdge = card.Celebrate ? Hex("#C77C00") : Hex("#C42872");
         RectF ribbonFace = CandyPanel(canvas, ribbon, u * 6f, ribbonLight, ribbonMain, ribbonEdge, lipRatio: 0.1f);
         float titleSize = GlyphFont.Fit(card.Title, u * 6.6f, ribbonFace.Width - u * 8f);
         GlyphFont.DrawStyled(canvas, card.Title, ribbonFace.Center.X, ribbonFace.Center.Y, titleSize,
-            Colors.White, Color.FromArgb("#FFF2D6"), Darken(ribbonEdge, 0.3f), titleSize * 0.11f, ShadowText);
+            Colors.White, Hex("#FFF2D6"), Darken(ribbonEdge, 0.3f), titleSize * 0.11f, ShadowText);
 
         float y = cardRect.Y + u * 15f;
 
@@ -421,14 +438,14 @@ public sealed class GameScene : IDrawable
                 float cx = cardRect.Center.X + (i - 1) * u * 15f;
                 float cy = y + u * 7f - (i == 1 ? u * 2f : 0f);
                 float radius = u * (i == 1 ? 7.5f : 6.2f);
-                Star(canvas, cx, cy + u * 0.8f, radius, Color.FromArgb("#B9A6E8"));
-                Star(canvas, cx, cy, radius, Color.FromArgb("#D9CCF7"));
+                Star(canvas, cx, cy + u * 0.8f, radius, Hex("#B9A6E8"));
+                Star(canvas, cx, cy, radius, Hex("#D9CCF7"));
                 if (i < card.Stars)
                 {
                     float starPop = EaseOutBack((now - _resultStart - 350 - i * 260) / 320f);
                     if (starPop > 0f)
                     {
-                        Star(canvas, cx, cy + u * 0.8f, radius * starPop, Color.FromArgb("#D99A00"));
+                        Star(canvas, cx, cy + u * 0.8f, radius * starPop, Hex("#D99A00"));
                         Star(canvas, cx, cy, radius * starPop, Gold);
                         Sparkle(canvas, cx - radius * 0.3f, cy - radius * 0.25f, radius * 0.25f * starPop, Colors.White.WithAlpha(0.9f));
                     }
@@ -440,25 +457,25 @@ public sealed class GameScene : IDrawable
         foreach (string line in card.Lines)
         {
             float size = GlyphFont.Fit(line, u * 3.9f, cardRect.Width - u * 10f);
-            GlyphFont.DrawCentered(canvas, line, cardRect.Center.X, y + u * 3f, size, Color.FromArgb("#4A3F7A"));
+            GlyphFont.DrawCentered(canvas, line, cardRect.Center.X, y + u * 3f, size, Hex("#4A3F7A"));
             y += u * 6.2f;
         }
         y += u * 4f;
 
         float buttonWidth = cardRect.Width - u * 14f;
         var primary = new RectF(cardRect.Center.X - buttonWidth / 2f, y, buttonWidth, u * 13f);
-        TextButton(canvas, primary, SceneAction.Primary, card.Primary, Color.FromArgb("#9BEF7A"), Color.FromArgb("#43C455"), Color.FromArgb("#2A912F"), u, now, big: true);
+        TextButton(canvas, primary, SceneAction.Primary, card.Primary, Hex("#9BEF7A"), Hex("#43C455"), Hex("#2A912F"), u, now, big: true);
         y += u * 15f;
 
         if (card.Secondary is not null)
         {
             var secondary = new RectF(cardRect.Center.X - buttonWidth / 2f, y, buttonWidth, u * 11f);
-            TextButton(canvas, secondary, SceneAction.Secondary, card.Secondary, Color.FromArgb("#7FCBFF"), Color.FromArgb("#3E9CFF"), Color.FromArgb("#1F6FCC"), u, now);
+            TextButton(canvas, secondary, SceneAction.Secondary, card.Secondary, Hex("#7FCBFF"), Hex("#3E9CFF"), Hex("#1F6FCC"), u, now);
             y += u * 13f;
         }
 
         var tertiary = new RectF(cardRect.Center.X - buttonWidth / 2f, y, buttonWidth, u * 11f);
-        TextButton(canvas, tertiary, SceneAction.Tertiary, card.Tertiary, Color.FromArgb("#FF8CC4"), Color.FromArgb("#FF4F9A"), Color.FromArgb("#C42872"), u, now);
+        TextButton(canvas, tertiary, SceneAction.Tertiary, card.Tertiary, Hex("#FF8CC4"), Hex("#FF4F9A"), Hex("#C42872"), u, now);
 
         canvas.RestoreState();
     }
@@ -480,10 +497,11 @@ public sealed class GameScene : IDrawable
         RectF face = CandyPanel(canvas, rect, rect.Height / 2f, light, main, edge, IsPressed(action, now), lipRatio: 0.12f);
         float size = GlyphFont.Fit(text, u * (big ? 5f : 4.3f), face.Width - u * 6f);
         GlyphFont.DrawStyled(canvas, text, face.Center.X, face.Center.Y, size,
-            Colors.White, Color.FromArgb("#FFF6E6"), Darken(edge, 0.3f), size * 0.11f, ShadowText);
+            Colors.White, Hex("#FFF6E6"), Darken(edge, 0.3f), size * 0.11f, ShadowText);
     }
 
-    private bool IsPressed(SceneAction action, long now) => _pressed == action && now - _pressStart < 160;
+    private bool IsPressed(SceneAction action, long now) =>
+        _held == action || (_pressed == action && now - _pressStart < 160);
 
     private void UpdateShownScore(long now)
     {
@@ -511,22 +529,31 @@ public sealed class GameScene : IDrawable
 
     private void Prune(long now)
     {
-        _bursts.RemoveAll(b => !b.Alive(now));
-        _floaters.RemoveAll(f => !f.Alive(now));
-        _praises.RemoveAll(p => !p.Alive(now));
+        // Plain loops: a lambda that captures the time would allocate on every frame
+        for (int i = _bursts.Count - 1; i >= 0; i--)
+            if (!_bursts[i].Alive(now))
+                _bursts.RemoveAt(i);
+        for (int i = _floaters.Count - 1; i >= 0; i--)
+            if (!_floaters[i].Alive(now))
+                _floaters.RemoveAt(i);
+        for (int i = _praises.Count - 1; i >= 0; i--)
+            if (!_praises[i].Alive(now))
+                _praises.RemoveAt(i);
         if (_confetti is not null && !_confetti.Alive(now))
             _confetti = null;
     }
 
-    private static RectF Scale(RectF rect, float scale)
-    {
-        if (Math.Abs(scale - 1f) < 0.001f)
-            return rect;
-        float w = rect.Width * scale, h = rect.Height * scale;
-        return new RectF(rect.Center.X - w / 2f, rect.Center.Y - h / 2f, w, h);
-    }
+    // The score and best only change now and then, so the last few texts are kept instead of formatted every frame
+    private static readonly Dictionary<long, string> NumberTexts = [];
 
-    private static string FormatNumber(long value) => value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+    private static string FormatNumber(long value)
+    {
+        if (NumberTexts.TryGetValue(value, out string? text))
+            return text;
+        if (NumberTexts.Count > 64)
+            NumberTexts.Clear();
+        return NumberTexts[value] = value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     /// <summary>Where everything sits for a given screen size. All sizes come from u = 1% of the width.</summary>
     private readonly struct Layout

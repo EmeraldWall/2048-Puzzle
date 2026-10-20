@@ -1,8 +1,11 @@
+using System.Text.Json;
+
 namespace Puzzle2048.Core;
 
 /// <summary>
 /// Everything that lasts between runs: player level, daily streak, records and the player's choices.
-/// All of it lives on the device.
+/// It lives on the device, and players signed in to Play Games also keep a copy in the cloud
+/// (<see cref="ExportCloud"/> and <see cref="MergeCloud"/>).
 /// </summary>
 public sealed class ProgressStore
 {
@@ -181,5 +184,120 @@ public sealed class ProgressStore
     {
         get => _storage.GetString(BackgroundKey, DefaultBackground);
         set => _storage.SetString(BackgroundKey, value);
+    }
+
+    // ---- Cloud copy: the records and level that give a player their sense of progress.
+    // Settings, the purchase and unfinished boards stay on the device.
+
+    private const int CloudVersion = 1;
+
+    private static readonly string[] CloudIntKeys =
+    [
+        LastDailyDayKey, StreakKey, BestStreakKey, DailyBestDayKey, DailyBestScoreKey,
+        GoalMetDayKey, DailyGoalsMetKey, DailyStarsDayKey, DailyStarsKey,
+    ];
+
+    private static IEnumerable<string> CloudLongKeys()
+    {
+        yield return TotalPointsKey;
+        yield return SprintBestKey;
+        foreach (GameMode mode in Enum.GetValues<GameMode>())
+            for (int size = 4; size <= 6; size++)
+                yield return $"high_{mode}_{size}";
+    }
+
+    /// <summary>The progress worth keeping in the cloud, as JSON.</summary>
+    public string ExportCloud()
+    {
+        var values = new Dictionary<string, long> { ["v"] = CloudVersion };
+        foreach (string key in CloudIntKeys)
+            values[key] = _storage.GetInt(key, Defaults(key));
+        foreach (string key in CloudLongKeys())
+            values[key] = _storage.GetLong(key, Defaults(key));
+        return JsonSerializer.Serialize(values);
+    }
+
+    /// <summary>
+    /// Folds a cloud copy into this device, keeping the better value of each record, so playing on two phones
+    /// never loses progress. Returns false when the cloud data cannot be read. Unknown keys are ignored.
+    /// </summary>
+    public bool MergeCloud(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return false;
+
+        Dictionary<string, long>? cloud;
+        try
+        {
+            cloud = JsonSerializer.Deserialize<Dictionary<string, long>>(json);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        if (cloud is null)
+            return false;
+
+        long Cloud(string key) => cloud.TryGetValue(key, out long v) ? v : Defaults(key);
+        int CloudInt(string key) => (int)Math.Clamp(Cloud(key), int.MinValue, int.MaxValue);
+        void Max(string key) => _storage.SetInt(key, Math.Max(_storage.GetInt(key, Defaults(key)), CloudInt(key)));
+
+        // Level points and lifetime records only ever grow
+        _storage.SetLong(TotalPointsKey, Math.Max(TotalPoints, Cloud(TotalPointsKey)));
+        foreach (string key in CloudLongKeys().Where(k => k.StartsWith("high_", StringComparison.Ordinal)))
+            _storage.SetLong(key, Math.Max(_storage.GetLong(key, 0), Cloud(key)));
+        Max(BestStreakKey);
+        Max(DailyGoalsMetKey);
+        Max(GoalMetDayKey);
+
+        long sprintCloud = Cloud(SprintBestKey);
+        if (sprintCloud >= 0 && (SprintBestMs < 0 || sprintCloud < SprintBestMs))
+            _storage.SetLong(SprintBestKey, sprintCloud);
+
+        // The streak belongs to whichever copy played more recently
+        int localLast = _storage.GetInt(LastDailyDayKey, -1), cloudLast = CloudInt(LastDailyDayKey);
+        if (cloudLast > localLast)
+        {
+            _storage.SetInt(LastDailyDayKey, cloudLast);
+            _storage.SetInt(StreakKey, CloudInt(StreakKey));
+        }
+        else if (cloudLast == localLast)
+        {
+            Max(StreakKey);
+        }
+
+        MergeDayRecord(DailyBestDayKey, DailyBestScoreKey, CloudInt(DailyBestDayKey), CloudInt(DailyBestScoreKey));
+        MergeDayRecord(DailyStarsDayKey, DailyStarsKey, CloudInt(DailyStarsDayKey), Math.Clamp(CloudInt(DailyStarsKey), 0, 3));
+        return true;
+    }
+
+    // A record that only counts for one day: the later day wins, and on the same day the higher value
+    private void MergeDayRecord(string dayKey, string valueKey, int cloudDay, int cloudValue)
+    {
+        int localDay = _storage.GetInt(dayKey, -1);
+        if (cloudDay > localDay || (cloudDay == localDay && cloudValue > _storage.GetInt(valueKey, 0)))
+        {
+            _storage.SetInt(dayKey, cloudDay);
+            _storage.SetInt(valueKey, cloudValue);
+        }
+    }
+
+    private static int Defaults(string key) => key switch
+    {
+        LastDailyDayKey or DailyBestDayKey or GoalMetDayKey or DailyStarsDayKey or SprintBestKey => -1,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// Wipes the player's progress from this device: level, streaks, records, stars and saved boards.
+    /// The purchase, which Google Play owns, and the player's settings stay.
+    /// </summary>
+    public void ResetProgress()
+    {
+        foreach (string key in CloudIntKeys.Concat(CloudLongKeys()))
+            _storage.Remove(key);
+        for (int size = 4; size <= 6; size++)
+            _storage.Remove($"classic_save_{size}");
+        _storage.Remove(ReminderPromptedKey);
     }
 }
